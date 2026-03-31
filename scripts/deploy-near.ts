@@ -53,7 +53,8 @@ async function main() {
 
   const { connect, keyStores, KeyPair } = await import('near-api-js')
   const keyStore = new keyStores.InMemoryKeyStore()
-  const keyPair  = KeyPair.fromString(privateKey)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const keyPair  = KeyPair.fromString(privateKey as any)
   await keyStore.setKey('testnet', accountId, keyPair)
 
   const near    = await connect({ networkId: 'testnet', nodeUrl: 'https://rpc.testnet.near.org', keyStore, headers: {} })

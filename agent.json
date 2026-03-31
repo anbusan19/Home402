@@ -17,13 +17,15 @@
   "active": true,
   "registrations": [
     {
-      "agentId": null,
+      "agentId": "0",
       "agentRegistry": "eip155:11155111:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
     }
   ],
-  "supportedTrust": ["reputation"],
+  "supportedTrust": [
+    "reputation"
+  ],
   "operator": {
-    "wallet": "0x<YOUR_OPERATOR_WALLET>",
+    "wallet": "0xD594f10F9a1B2aee8783CCD384a09Fb131233430",
     "name": "Casa Operator"
   },
   "tools": [
@@ -44,6 +46,11 @@
   "computeConstraints": {
     "maxOrderAmountINR": 2000,
     "maxOrdersPerDay": 5,
-    "supportedPlatforms": ["zepto", "blinkit", "amazon", "swiggy-instamart"]
+    "supportedPlatforms": [
+      "zepto",
+      "blinkit",
+      "amazon",
+      "swiggy-instamart"
+    ]
   }
 }

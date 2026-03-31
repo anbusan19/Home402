@@ -52,10 +52,10 @@ async function getSynapseSDK() {
   // Dynamic import (package may not be installed yet)
   const { Synapse } = await import('@filoz/synapse-sdk')
 
-  return new Synapse({
-    privateKey: pk,
-    rpcURL:     rpc,
-    token:      token,
+  return Synapse.create({
+    privateKey:    pk,
+    rpcURL:        rpc,
+    authorization: token,
   })
 }
 
@@ -71,13 +71,14 @@ export async function uploadReceipt(receipt: OrderReceipt): Promise<string> {
   console.log(`[filecoin] Receipt cached locally: ${localFile}`)
 
   try {
-    const synapse = await getSynapseSDK()
-    const json    = JSON.stringify(receipt)
-    const bytes   = Buffer.from(json, 'utf-8')
+    const synapse  = await getSynapseSDK()
+    const storage  = await synapse.createStorage()
+    const json     = JSON.stringify(receipt)
+    const bytes    = Buffer.from(json, 'utf-8')
 
     // Upload to Filecoin Calibration
-    const result  = await synapse.upload(bytes, { mimeType: 'application/json' })
-    const cid     = result.cid || result.pieceCID || result.toString()
+    const result   = await storage.upload(bytes)
+    const cid      = result.commp.toString()
 
     console.log(`[filecoin] Receipt uploaded ✅ CID: ${cid}`)
     return cid
@@ -101,10 +102,11 @@ export async function uploadLog(log: unknown): Promise<string> {
   await fs.writeFile(localFile, JSON.stringify(log, null, 2))
 
   try {
-    const synapse = await getSynapseSDK()
-    const bytes   = Buffer.from(JSON.stringify(log), 'utf-8')
-    const result  = await synapse.upload(bytes, { mimeType: 'application/json' })
-    const cid     = result.cid || result.pieceCID || result.toString()
+    const synapse  = await getSynapseSDK()
+    const storage  = await synapse.createStorage()
+    const bytes    = Buffer.from(JSON.stringify(log), 'utf-8')
+    const result   = await storage.upload(bytes)
+    const cid      = result.commp.toString()
     console.log(`[filecoin] Log uploaded ✅ CID: ${cid}`)
     return cid
   } catch (err) {

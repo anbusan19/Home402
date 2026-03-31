@@ -92,7 +92,7 @@ export class RunLogger {
       tool,
       ts:     new Date().toISOString(),
       ...details,
-    })
+    } as LogStep)
   }
 
   /** Finalize log, write to agent_log.json, return the log object */
