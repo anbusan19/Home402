@@ -25,3 +25,5 @@ agent_log.json
 
 # NEAR credentials
 .near-credentials/
+
+.next

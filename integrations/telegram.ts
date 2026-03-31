@@ -34,6 +34,12 @@ export type SearchHandler = (
 
 export type BudgetHandler = (chatId: number) => Promise<string>
 
+export type NLHandler = (
+  chatId:     number,
+  message:    string,
+  sendStatus: (msg: string) => Promise<void>
+) => Promise<boolean>
+
 // Per-chat pending search results
 const pendingSearches = new Map<number, ZeptoProduct[]>()
 
@@ -42,7 +48,8 @@ let bot: Bot<Context> | null = null
 export function startBot(
   onOrder:  OrderHandler,
   onSearch: SearchHandler,
-  onBudget: BudgetHandler
+  onBudget: BudgetHandler,
+  onNL?:    NLHandler
 ): Bot<Context> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set in .env')
@@ -56,7 +63,7 @@ export function startBot(
       `I manage your household shopping. Send me what you need and I'll order it silently.\n\n` +
       `*Commands:*\n` +
       `/search <query> — find products on Zepto\n` +
-      `/order <item> — order directly by name\n` +
+      `/order <item> — order one item (or comma-separated list)\n` +
       `/budget — check your weekly spend cap\n` +
       `/otp <code> — submit login OTP if prompted\n` +
       `/cancel — cancel active search\n\n` +
@@ -123,7 +130,7 @@ export function startBot(
   // ── /order ────────────────────────────────────────────────────
   bot.command('order', async (ctx) => {
     const item = ctx.match?.trim()
-    if (!item) return ctx.reply('Usage: /order <item name>\nExample: /order atta 1kg')
+    if (!item) return ctx.reply('Usage: /order <item>\nExamples:\n  /order atta 1kg\n  /order milk, eggs, bread')
 
     const chatId    = ctx.chat.id
     const sendStatus = (msg: string) =>
@@ -133,28 +140,43 @@ export function startBot(
     await onOrder(chatId, item, null, sendStatus)
   })
 
-  // ── Number selection after /search ───────────────────────────
+  // ── Free-text: number selection after /search, or natural language ──
   bot.on('message:text', async (ctx) => {
     const chatId = ctx.chat.id
     const text   = ctx.message.text?.trim()
     if (!text || text.startsWith('/')) return
 
-    const products = pendingSearches.get(chatId)
-    if (!products) return
-
-    const num = parseInt(text, 10)
-    if (isNaN(num) || num < 1 || num > products.length) {
-      return ctx.reply(`Please reply with a number between 1 and ${products.length}, or /cancel.`)
-    }
-
-    const selected = products[num - 1]
-    pendingSearches.delete(chatId)
-
     const sendStatus = (msg: string) =>
       bot!.api.sendMessage(chatId, msg, { parse_mode: 'Markdown' }).then(() => {})
 
-    await sendStatus(`✅ Selected: *${selected.name}* (${selected.price})\n\n⏳ Starting order flow...`)
-    await onOrder(chatId, selected.name, selected, sendStatus)
+    // If there's a pending search, try number selection first
+    const products = pendingSearches.get(chatId)
+    if (products) {
+      const num = parseInt(text, 10)
+      if (!isNaN(num) && num >= 1 && num <= products.length) {
+        const selected = products[num - 1]
+        pendingSearches.delete(chatId)
+        await sendStatus(`✅ Selected: *${selected.name}* (${selected.price})\n\n⏳ Starting order flow...`)
+        await onOrder(chatId, selected.name, selected, sendStatus)
+        return
+      }
+      // Not a valid number — fall through to NL handler
+      pendingSearches.delete(chatId)
+    }
+
+    // Try natural language understanding
+    if (onNL) {
+      const handled = await onNL(chatId, text, sendStatus).catch(() => false)
+      if (handled) return
+    }
+
+    // Fallback hint
+    await sendStatus(
+      `I'm not sure what you mean. Try:\n` +
+      `/order milk, eggs\n` +
+      `/search hocco ice cream\n` +
+      `or just say _"order me X"_ or _"find X"_`
+    )
   })
 
   bot.catch((err) => {

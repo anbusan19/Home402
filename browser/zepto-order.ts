@@ -1,37 +1,51 @@
 /**
  * browser/zepto-order.ts
  *
- * Zepto order automation — migrated from server/zepto/order.ts
+ * Zepto order automation.
  * Handles search → add to cart → checkout → Zepto Cash payment → order confirmation.
+ *
+ * Exports:
+ *   addItemToCart     — navigate to a product and add it to the cart (no checkout)
+ *   checkoutZeptoCart — complete checkout for whatever is currently in the cart
+ *   placeZeptoOrder   — convenience wrapper: addItemToCart + checkoutZeptoCart
  */
 
 import { BrowserContext } from 'playwright'
 
 const ZEPTO_URL = 'https://www.zepto.com'
 
+export interface CartItem {
+  name:  string
+  price: string
+}
+
 export interface ZeptoOrderResult {
   zeptoOrderId: string
+  items:        CartItem[]
+  /** kept for back-compat (first item name) */
   item:         string
   price:        string
   eta:          string
 }
 
-export async function placeZeptoOrder(
+// ── Add a single item to the Zepto cart ──────────────────────────────
+
+export async function addItemToCart(
   context:     BrowserContext,
   query:       string,
   productUrl?: string
-): Promise<ZeptoOrderResult> {
+): Promise<CartItem> {
   const page = await context.newPage()
 
   try {
-    console.log(`[zepto] Starting order for: "${query}"${productUrl ? ' (direct URL)' : ''}`)
+    console.log(`[zepto:add] Adding to cart: "${query}"${productUrl ? ' (direct URL)' : ''}`)
 
     let productName  = query
     let productPrice = 'unknown'
 
     if (productUrl) {
       const fullUrl = productUrl.startsWith('http') ? productUrl : `${ZEPTO_URL}${productUrl}`
-      console.log('[zepto] Going directly to product:', fullUrl)
+      console.log('[zepto:add] Going directly to product:', fullUrl)
       await page.goto(fullUrl, { waitUntil: 'networkidle', timeout: 40000 })
       await page.waitForTimeout(2000)
 
@@ -45,13 +59,13 @@ export async function placeZeptoOrder(
       })
       productName  = details.name  || query
       productPrice = details.price || 'unknown'
-      console.log('[zepto] Product:', productName, productPrice)
+      console.log('[zepto:add] Product:', productName, productPrice)
 
     } else {
       await page.goto(ZEPTO_URL, { waitUntil: 'networkidle', timeout: 40000 })
       await page.waitForTimeout(2000)
 
-      console.log('[zepto] Searching...')
+      console.log('[zepto:add] Searching...')
       await page.click('[data-testid="search-bar-icon"]')
       await page.waitForTimeout(1500)
 
@@ -62,7 +76,7 @@ export async function placeZeptoOrder(
       await page.waitForTimeout(2000)
       await page.locator(`text=${query}`).first().click()
       await page.waitForTimeout(3000)
-      console.log('[zepto] Search results loaded:', page.url())
+      console.log('[zepto:add] Search results loaded:', page.url())
 
       const firstProduct = await page.evaluate(() => {
         const link  = document.querySelector('a[href*="/pn/"]')
@@ -77,34 +91,59 @@ export async function placeZeptoOrder(
     }
 
     // ── Add to cart ──────────────────────────────────────────────
-    console.log('[zepto] Adding to cart...')
+    console.log('[zepto:add] Clicking ADD...')
     await page.locator('button', { hasText: 'ADD' }).first().click()
     try {
       await page.waitForFunction(() =>
         Array.from(document.querySelectorAll('button')).some(b => /view cart/i.test(b.textContent?.trim() ?? ''))
       , { timeout: 5000 })
+      console.log('[zepto:add] Item added ✅', productName)
     } catch {
       await page.waitForTimeout(2000)
     }
 
-    // ── Open cart ────────────────────────────────────────────────
-    console.log('[zepto] Opening cart...')
-    const cartOpened = await page.evaluate(() => {
-      const el = Array.from(document.querySelectorAll('button, a, div, span')).find(e =>
-        /view cart/i.test(e.textContent?.trim() ?? '') && (e as HTMLElement).offsetParent !== null
-      ) as HTMLElement | undefined
-      if (el) { el.click(); return true }
-      return false
-    })
-    if (!cartOpened) await page.locator('text=Cart').first().click()
+    return { name: productName, price: productPrice }
 
-    try {
-      await page.waitForFunction(() =>
-        /item total|total bill|add address|proceed to pay/i.test(document.body.innerText)
-      , { timeout: 10000 })
-    } catch { /* proceed anyway */ }
+  } finally {
+    await page.close()
+  }
+}
+
+// ── Checkout whatever is currently in the cart ────────────────────────
+
+export async function checkoutZeptoCart(
+  context: BrowserContext,
+  cartItems: CartItem[] = []
+): Promise<ZeptoOrderResult> {
+  const page = await context.newPage()
+
+  try {
+    // Navigate to cart
+    console.log('[zepto:checkout] Navigating to cart...')
+    await page.goto(`${ZEPTO_URL}/cart`, { waitUntil: 'networkidle', timeout: 40000 })
+    await page.waitForTimeout(2000)
+
+    // If cart page didn't load, try clicking the cart icon from home
+    const onCart = await page.evaluate(() =>
+      /item total|total bill|add address|proceed to pay|your cart/i.test(document.body.innerText)
+    )
+    if (!onCart) {
+      console.log('[zepto:checkout] Direct /cart load uncertain, trying cart icon...')
+      await page.goto(ZEPTO_URL, { waitUntil: 'networkidle', timeout: 30000 })
+      await page.waitForTimeout(2000)
+      const cartIcon = page.locator('[aria-label*="cart" i], [data-testid*="cart" i], a[href*="/cart"]').first()
+      const cartVisible = await cartIcon.isVisible().catch(() => false)
+      if (cartVisible) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
+          cartIcon.click(),
+        ])
+      }
+      await page.waitForTimeout(2000)
+    }
 
     await page.screenshot({ path: '/tmp/zepto-cart.png' })
+    console.log('[zepto:checkout] Cart page URL:', page.url())
 
     const needsLogin = await page.locator('text=Please Login').isVisible().catch(() => false)
     if (needsLogin) throw new Error('SESSION_EXPIRED — re-login needed')
@@ -118,13 +157,20 @@ export async function placeZeptoOrder(
         if (btn) { btn.click(); return true }
         return false
       }, pattern.source)
-      console.log(`[zepto] jsClick "${label}":`, clicked ? 'clicked ✅' : 'not found')
+      console.log(`[zepto:checkout] jsClick "${label}":`, clicked ? 'clicked ✅' : 'not found')
       return clicked
     }
 
     // ── Add Address / Proceed ────────────────────────────────────
-    await jsClickButton(/add address to proceed|proceed to checkout/i, 'Add Address to proceed')
-    await page.waitForTimeout(3000)
+    const addAddrClicked = await jsClickButton(/add address to proceed|proceed to checkout/i, 'Add Address to proceed')
+    if (addAddrClicked) {
+      try {
+        await page.waitForFunction(() =>
+          /select an address|saved addresses|proceed to pay|deliver here/i.test(document.body.innerText)
+        , { timeout: 8000 })
+      } catch { /* proceed anyway */ }
+    }
+    await page.waitForTimeout(2000)
     await page.screenshot({ path: '/tmp/zepto-s6-after-proceed.png' })
 
     // ── Address selection ────────────────────────────────────────
@@ -171,7 +217,7 @@ export async function placeZeptoOrder(
         if (fallback) { fallback.click(); return `fallback: ${fallback.textContent?.trim().slice(0, 60)}` }
         return null
       })
-      console.log('[zepto] Address row clicked:', addrClicked)
+      console.log('[zepto:checkout] Address row clicked:', addrClicked)
       await page.waitForTimeout(2000)
       await jsClickButton(/deliver here|use this address|confirm address|done/i, 'Confirm address')
       await page.waitForTimeout(2000)
@@ -181,8 +227,15 @@ export async function placeZeptoOrder(
     await page.screenshot({ path: '/tmp/zepto-s7-after-address.png' })
 
     // ── Proceed to Pay ───────────────────────────────────────────
-    await jsClickButton(/proceed to pay/i, 'Proceed to Pay')
-    await page.waitForTimeout(3000)
+    const proceedClicked = await jsClickButton(/proceed to pay/i, 'Proceed to Pay')
+    if (proceedClicked) {
+      try {
+        await page.waitForFunction(() =>
+          /place order|pay now|zepto cash|zepto wallet|payment method/i.test(document.body.innerText)
+        , { timeout: 8000 })
+      } catch { /* proceed anyway */ }
+    }
+    await page.waitForTimeout(2000)
     await page.screenshot({ path: '/tmp/zepto-s8-payment-screen.png' })
 
     // ── Select Zepto Cash ────────────────────────────────────────
@@ -194,7 +247,7 @@ export async function placeZeptoOrder(
       if (el) { el.click(); return true }
       return false
     })
-    console.log('[zepto] Zepto Cash clicked:', walletClicked)
+    console.log('[zepto:checkout] Zepto Cash clicked:', walletClicked)
     await page.waitForTimeout(1500)
     await page.screenshot({ path: '/tmp/zepto-s9-pre-place.png' })
 
@@ -215,9 +268,9 @@ export async function placeZeptoOrder(
     await page.screenshot({ path: '/tmp/zepto-s11-post-place.png' })
 
     const confirmation = await page.evaluate(() => {
-      const idEl   = document.querySelector('[class*="orderId" i], [class*="order-id" i]')
-      const idText = document.body.innerText.match(/#?([A-Z0-9]{6,20})/)?.[1]
-      const etaEl  = document.querySelector('[class*="eta" i], [class*="time" i], [class*="minute" i]')
+      const idEl    = document.querySelector('[class*="orderId" i], [class*="order-id" i]')
+      const idText  = document.body.innerText.match(/#?([A-Z0-9]{6,20})/)?.[1]
+      const etaEl   = document.querySelector('[class*="eta" i], [class*="time" i], [class*="minute" i]')
       const totalEl = document.querySelector('[class*="total" i], [class*="amount" i]')
       return {
         orderId: idEl?.textContent?.trim() || idText || null,
@@ -242,14 +295,28 @@ export async function placeZeptoOrder(
       ? `ZP-${confirmation.orderId}`
       : `ZP-${Date.now()}`
 
+    const firstItem = cartItems[0] ?? { name: 'unknown', price: 'unknown' }
+
     return {
       zeptoOrderId,
-      item:  productName,
-      price: confirmation.total || orderSummary.total || productPrice,
+      items: cartItems.length > 0 ? cartItems : [firstItem],
+      item:  firstItem.name,
+      price: confirmation.total || orderSummary.total || firstItem.price,
       eta:   confirmation.eta   || orderSummary.eta   || '10–15 mins',
     }
 
   } finally {
     await page.close()
   }
+}
+
+// ── Convenience wrapper: add one item + checkout ──────────────────────
+
+export async function placeZeptoOrder(
+  context:     BrowserContext,
+  query:       string,
+  productUrl?: string
+): Promise<ZeptoOrderResult> {
+  const cartItem = await addItemToCart(context, query, productUrl)
+  return checkoutZeptoCart(context, [cartItem])
 }

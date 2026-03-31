@@ -11,7 +11,8 @@
     "deploy:near": "tsx scripts/deploy-near.ts",
     "setup:storacha": "tsx scripts/setup-storacha.ts",
     "seed:impulse": "tsx scripts/seed-impulse.ts",
-    "sessions:capture": "tsx scripts/sessions-capture.ts"
+    "sessions:capture": "tsx scripts/sessions-capture.ts",
+    "dev:web": "cd web && pnpm install && pnpm dev"
   },
   "dependencies": {
     "@filoz/synapse-sdk": "^1.0.0",

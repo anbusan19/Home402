@@ -105,6 +105,65 @@ export async function reason(
   }
 }
 
+// ── Natural language intent parser ───────────────────────────────────
+
+export interface NLIntent {
+  /** What the user wants to do */
+  intent: 'order' | 'search' | 'budget' | 'cancel' | 'unknown'
+  /** Items to order or search for (already cleaned up, e.g. "Hocco ice cream sandwich") */
+  items: string[]
+  /** Brand or store hint extracted from the message, if any (e.g. "hocco", "amul") */
+  brand?: string
+  /** Platform hint if user mentions one (zepto / blinkit / swiggy) */
+  platform?: string
+  /** A short reply to send the user before acting, e.g. "Sure, ordering Hocco ice cream sandwich!" */
+  reply: string
+}
+
+const NL_SYSTEM = `You are the intent parser for Casa, an autonomous home-shopping agent in India.
+The user sends casual messages via Telegram. Extract their intent and the items they want.
+
+Respond ONLY with valid JSON:
+{
+  "intent": "order" | "search" | "budget" | "cancel" | "unknown",
+  "items": ["<cleaned item name including brand if mentioned>"],
+  "brand": "<brand name if explicitly mentioned, else omit>",
+  "platform": "<zepto|blinkit|swiggy if mentioned, else omit>",
+  "reply": "<friendly one-line confirmation you will say before acting>"
+}
+
+Rules:
+- "order" if the user clearly wants to buy/order something
+- "search" if they want to find/check products without ordering
+- "budget" if they ask about spending limits or remaining budget
+- "cancel" if they want to stop/cancel
+- "unknown" if you genuinely cannot tell
+- items: always include the brand in the item string (e.g. "Hocco ice cream sandwich", not just "ice cream sandwich")
+- reply: be concise and friendly, confirm what you understood`
+
+export async function parseNaturalLanguage(message: string): Promise<NLIntent> {
+  const response = await client.chat.completions.create({
+    model:      MODEL,
+    max_tokens: 300,
+    messages: [
+      { role: 'system', content: NL_SYSTEM },
+      { role: 'user',   content: message },
+    ],
+  })
+
+  const text      = response.choices[0]?.message?.content?.trim() ?? ''
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    return { intent: 'unknown', items: [], reply: "Sorry, I didn't understand that. Try /order <item> or /search <query>." }
+  }
+
+  try {
+    return JSON.parse(jsonMatch[0]) as NLIntent
+  } catch {
+    return { intent: 'unknown', items: [], reply: "Sorry, I couldn't parse that. Try /order <item>." }
+  }
+}
+
 /**
  * Detect a platform wallet balance from a checkout screenshot.
  * Returns parsed balance in INR.

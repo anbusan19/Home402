@@ -16,15 +16,18 @@ import 'dotenv/config'
 import { Browser, BrowserContext } from 'playwright'
 import { getZeptoSession }         from '../browser/launcher.js'
 import { searchZeptoProducts }     from '../browser/zepto-search.js'
-import { placeZeptoOrder }         from '../browser/zepto-order.js'
+import { addItemToCart, checkoutZeptoCart } from '../browser/zepto-order.js'
+import type { CartItem }           from '../browser/zepto-order.js'
 import { routePayment }            from '../payments/payment-router.js'
 import { uploadReceipt }           from '../storage/filecoin.js'
 import { loadPreferenceProfile, appendOrderHistory } from '../storage/storacha.js'
 import { giveFeedback }            from '../identity/erc8004.js'
 import { checkBudget, deductBudget } from '../integrations/near.js'
 import { startScheduler }          from './scheduler.js'
+import { parseNaturalLanguage }    from './brain.js'
 import { createRun, RunLogger }    from './logger.js'
 import { startBot, notify }        from '../integrations/telegram.js'
+import { startHttpServer }         from '../integrations/http.js'
 import type { ZeptoProduct }       from '../browser/zepto-search.js'
 import type { OrderReceipt }       from '../storage/filecoin.js'
 
@@ -59,12 +62,15 @@ export async function processOrder(
   product:    ZeptoProduct | null,
   sendStatus: (msg: string) => Promise<void>
 ): Promise<void> {
-  const log    = createRun('telegram_message', item)
-  let agentId: bigint | null = null
+  // Support comma-separated multi-item orders: "milk, eggs, bread"
+  const itemList = item.split(',').map(s => s.trim()).filter(Boolean)
+  const label    = itemList.length > 1 ? `${itemList.length} items` : itemList[0]
+
+  const log = createRun('telegram_message', label)
 
   try {
-    await sendStatus(`🏠 *Casa* is on it — ordering *${item}*...`)
-    log.step('start_order', 'agent', { status: 'success', item })
+    await sendStatus(`🏠 *Casa* is on it — ordering *${label}*...`)
+    log.step('start_order', 'agent', { status: 'success', items: itemList })
 
     // ── Step 1: Load agent memory (preferences) ──────────────────
     let profile: Awaited<ReturnType<typeof loadPreferenceProfile>> | null = null
@@ -75,8 +81,8 @@ export async function processOrder(
       log.step('load_memory', 'storacha', { status: 'skipped', message: 'Storacha not configured' })
     }
 
-    // ── Step 2: Budget check ──────────────────────────────────────
-    let orderTotalINR = 100 // estimated; updated after we know the product price
+    // ── Step 2: Budget check (estimated ₹100/item) ────────────────
+    let orderTotalINR = 100 * itemList.length
     try {
       const budget = await checkBudget('groceries', orderTotalINR)
       if (!budget.approved) {
@@ -98,61 +104,64 @@ export async function processOrder(
       log.step('near_budget_check', 'near-contract', { status: 'skipped', message: 'NEAR not configured' })
     }
 
-    // ── Step 3: Get browser context + find product ────────────────
+    // ── Step 3: Get browser context ───────────────────────────────
     log.step('load_session', 'playwright', { status: 'success' })
-    await sendStatus(`🔍 Opening Zepto...`)
     const context = await getSession(chatId)
 
-    // If no product selected yet, search first
-    let selectedProduct = product
-    if (!selectedProduct) {
-      await sendStatus(`🔍 Searching for *${item}*...`)
-      const results = await searchZeptoProducts(context, item)
-      if (results.length === 0) {
-        await sendStatus(`❌ No products found for "${item}" on Zepto.`)
-        log.step('search', 'playwright', { status: 'failed', message: 'No results' })
-        await log.finish('failed')
-        return
-      }
-      selectedProduct = results[0]
-      log.step('search', 'playwright', { status: 'success', item: selectedProduct.name })
-      await sendStatus(`✅ Found: *${selectedProduct.name}* (${selectedProduct.price})`)
-    }
-
-    // ── Step 4: Screenshot + Claude vision reasoning ──────────────
-    log.step('screenshot_and_reason', 'claude-vision', {
-      status:   'success',
-      decision: `navigate to product: ${selectedProduct.name}`,
-    })
-
-    // ── Step 5: x402 attempt ──────────────────────────────────────
+    // ── Step 4: x402 attempt ──────────────────────────────────────
     await sendStatus(`💳 Attempting x402 payment...`)
-    const paymentResult = await routePayment(context, 100, log)
+    const paymentResult = await routePayment(context, orderTotalINR, log)
     const walletUsed    = paymentResult.walletUsed
 
     if (paymentResult.x402Settled) {
-      log.step('x402_attempt', 'x402-client', {
-        status:  'success',
-        fallback: undefined,
-      })
+      log.step('x402_attempt', 'x402-client', { status: 'success', fallback: undefined })
       await sendStatus(`✅ *x402 payment settled!*`)
     } else {
-      log.step('x402_attempt', 'x402-client', {
-        status:  'no_402_response',
-        fallback: 'platform_wallet',
-      })
+      log.step('x402_attempt', 'x402-client', { status: 'no_402_response', fallback: 'platform_wallet' })
     }
 
-    // ── Step 6: Place Zepto order ─────────────────────────────────
-    await sendStatus(`🛒 Navigating Zepto checkout...`)
-    const zepto = await placeZeptoOrder(context, selectedProduct.name, selectedProduct.url)
-    const priceText = zepto.price || selectedProduct.price
+    // ── Step 5: Add all items to cart ─────────────────────────────
+    const cartItems: CartItem[] = []
 
-    // Parse INR amount from price string (e.g. "₹67" → 67)
-    const parsed  = priceText.match(/[\d.]+/)
-    orderTotalINR = parsed ? parseFloat(parsed[0]) : 100
+    for (let i = 0; i < itemList.length; i++) {
+      const itemName = itemList[i]
 
-    log.step('add_to_cart',       'playwright',   { status: 'success', item: zepto.item })
+      // If a single product was pre-selected (from /search), use it for the first item only
+      if (i === 0 && product) {
+        await sendStatus(`🛒 Adding *${product.name}* to cart (${i + 1}/${itemList.length})...`)
+        const added = await addItemToCart(context, product.name, product.url)
+        cartItems.push(added)
+        log.step('add_to_cart', 'playwright', { status: 'success', item: added.name })
+      } else {
+        await sendStatus(`🔍 Finding *${itemName}* (${i + 1}/${itemList.length})...`)
+        const results = await searchZeptoProducts(context, itemName)
+        if (results.length === 0) {
+          await sendStatus(`⚠️ No results for "${itemName}" — skipping.`)
+          log.step('search', 'playwright', { status: 'failed', message: `No results for ${itemName}` })
+          continue
+        }
+        const found = results[0]
+        await sendStatus(`✅ Found: *${found.name}* (${found.price}) — adding to cart...`)
+        const added = await addItemToCart(context, found.name, found.url)
+        cartItems.push(added)
+        log.step('add_to_cart', 'playwright', { status: 'success', item: added.name })
+      }
+    }
+
+    if (cartItems.length === 0) {
+      await sendStatus(`❌ Could not find any of the requested items.`)
+      await log.finish('failed')
+      return
+    }
+
+    // ── Step 6: Checkout ──────────────────────────────────────────
+    await sendStatus(`🛒 Checking out ${cartItems.length} item(s)...`)
+    const zepto = await checkoutZeptoCart(context, cartItems)
+
+    const priceText = zepto.price
+    const parsed    = priceText?.match(/[\d.]+/)
+    orderTotalINR   = parsed ? parseFloat(parsed[0]) : 100 * cartItems.length
+
     log.step('pay_platform_wallet', 'playwright', {
       status:    walletUsed ? 'success' : 'skipped',
       wallet:    walletUsed || 'zepto_cash',
@@ -176,7 +185,7 @@ export async function processOrder(
         operatorWallet:  process.env.OPERATOR_WALLET || '0x0',
         orderId:         zepto.zeptoOrderId,
         platform:        'zepto',
-        items:           [{ name: zepto.item, qty: 1, priceINR: orderTotalINR }],
+        items:           cartItems.map(ci => ({ name: ci.name, qty: 1, priceINR: 100 })),
         totalINR:        orderTotalINR,
         walletUsed:      walletUsed || 'zepto_cash',
         x402Attempted:   true,
@@ -187,9 +196,9 @@ export async function processOrder(
       }
       pieceCID = await uploadReceipt(receipt)
       log.step('store_receipt_filecoin', 'synapse-sdk', {
-        status:   'success',
+        status:  'success',
         pieceCID,
-        network:  'filecoin-calibration',
+        network: 'filecoin-calibration',
       })
       await sendStatus(`📄 Receipt stored: \`${pieceCID}\``)
     } catch (err) {
@@ -214,7 +223,7 @@ export async function processOrder(
     try {
       await appendOrderHistory({
         orderId:   zepto.zeptoOrderId,
-        item:      zepto.item,
+        item:      cartItems.map(ci => ci.name).join(', '),
         platform:  'zepto',
         priceINR:  orderTotalINR,
         timestamp: new Date().toISOString(),
@@ -225,10 +234,11 @@ export async function processOrder(
     }
 
     // ── Step 11: Telegram confirmation ────────────────────────────
+    const itemLines = cartItems.map(ci => `• ${ci.name}`).join('\n')
     const confirmation =
       `📦 *Order Placed!*\n\n` +
-      `Item: ${zepto.item}\n` +
-      `Price: ${zepto.price}\n` +
+      `${cartItems.length > 1 ? `Items:\n${itemLines}\n` : `Item: ${cartItems[0].name}\n`}` +
+      `Total: ${zepto.price}\n` +
       `ETA: ${zepto.eta}\n` +
       `Order ID: \`${zepto.zeptoOrderId}\`` +
       (pieceCID ? `\nReceipt: \`${pieceCID.slice(0, 20)}…\` (Filecoin)` : '') +
@@ -282,6 +292,53 @@ async function handleBudget(_chatId: number): Promise<string> {
   }
 }
 
+// ── Natural language handler ──────────────────────────────────────
+
+export async function handleNaturalLanguage(
+  chatId:     number,
+  message:    string,
+  sendStatus: (msg: string) => Promise<void>
+): Promise<boolean> {
+  let intent
+  try {
+    intent = await parseNaturalLanguage(message)
+  } catch {
+    return false // let the caller decide what to do
+  }
+
+  if (intent.intent === 'unknown') return false
+
+  // Always echo back what we understood
+  await sendStatus(intent.reply)
+
+  if (intent.intent === 'order' && intent.items.length > 0) {
+    // Build search query including brand hint, e.g. "Hocco ice cream sandwich"
+    const orderArg = intent.items.join(', ')
+    await processOrder(chatId, orderArg, null, sendStatus)
+    return true
+  }
+
+  if (intent.intent === 'search' && intent.items.length > 0) {
+    const context  = await getSession(chatId)
+    const results  = await searchZeptoProducts(context, intent.items[0])
+    if (results.length === 0) {
+      await sendStatus(`❌ No results found for "${intent.items[0]}".`)
+    } else {
+      const list = results.map((p, i) => `*${i + 1}.* ${p.name} — ${p.price}`).join('\n')
+      await sendStatus(`🛒 *Results for "${intent.items[0]}":*\n\n${list}\n\nReply with a number to order, or /cancel.`)
+    }
+    return true
+  }
+
+  if (intent.intent === 'budget') {
+    const msg = await handleBudget(chatId)
+    await sendStatus(msg)
+    return true
+  }
+
+  return false
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────
 
 async function main() {
@@ -301,7 +358,8 @@ async function main() {
   console.log('[agent] Restock scheduler started (6h interval)')
 
   // Start Telegram bot
-  startBot(processOrder, handleSearch, handleBudget)
+  startBot(processOrder, handleSearch, handleBudget, handleNaturalLanguage)
+  startHttpServer(handleNaturalLanguage)
   console.log('[agent] Ready — waiting for Telegram messages\n')
 }
 
