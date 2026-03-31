@@ -1,0 +1,27 @@
+node_modules/
+dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Browser sessions (contain auth cookies)
+browser/sessions/
+zepto-session.json
+
+# Wallet & identity
+identity/agent.json
+
+# Storacha local cache (contains order history)
+.storacha-memory.json
+
+# Filecoin local receipt cache
+storage/receipts/
+
+# Agent execution logs (may contain PII)
+agent_log.json
+
+# NEAR credentials
+.near-credentials/

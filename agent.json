@@ -1,0 +1,49 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Casa",
+  "description": "Autonomous home commerce agent. Perceives household needs, navigates real e-commerce platforms by vision, and pays using x402 and platform-native wallets. No human in the loop.",
+  "image": "https://your-domain.com/casa-logo.png",
+  "services": [
+    {
+      "name": "telegram",
+      "endpoint": "https://t.me/casa_agent_bot"
+    },
+    {
+      "name": "web",
+      "endpoint": "https://your-domain.com"
+    }
+  ],
+  "x402Support": true,
+  "active": true,
+  "registrations": [
+    {
+      "agentId": null,
+      "agentRegistry": "eip155:11155111:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+    }
+  ],
+  "supportedTrust": ["reputation"],
+  "operator": {
+    "wallet": "0x<YOUR_OPERATOR_WALLET>",
+    "name": "Casa Operator"
+  },
+  "tools": [
+    "playwright-browser",
+    "telegram-bot",
+    "x402-payment-client",
+    "filecoin-synapse-sdk",
+    "near-contract",
+    "impulse-ai-api",
+    "storacha-storage"
+  ],
+  "taskCategories": [
+    "grocery-ordering",
+    "household-restocking",
+    "autonomous-payment",
+    "appliance-ordering"
+  ],
+  "computeConstraints": {
+    "maxOrderAmountINR": 2000,
+    "maxOrdersPerDay": 5,
+    "supportedPlatforms": ["zepto", "blinkit", "amazon", "swiggy-instamart"]
+  }
+}
