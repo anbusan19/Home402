@@ -25,7 +25,7 @@ import { checkBudget, deductBudget } from '../integrations/near.js'
 import { startScheduler }          from './scheduler.js'
 import { parseNaturalLanguage }    from './brain.js'
 import { createRun }               from './logger.js'
-import { startBot, notify }        from '../integrations/telegram.js'
+import { startBot, notify, notifyOrderComplete, esc, buildBudgetCard } from '../integrations/telegram.js'
 import { startHttpServer }         from '../integrations/http.js'
 import type { ZeptoProduct }       from '../browser/zepto-search.js'
 import type { OrderReceipt }       from '../storage/filecoin.js'
@@ -41,7 +41,7 @@ async function getSession(chatId: number): Promise<BrowserContext> {
     const result = await getZeptoSession(() => {
       if (globalChatId) {
         notify(globalChatId,
-          `📱 *OTP sent to your phone.*\nReply with \`/otp <code>\` to continue Zepto login.`
+          `📱 *OTP sent to your phone\\.*\nReply with \`/otp <code>\` to continue Zepto login\\.`
         )
       }
     })
@@ -62,13 +62,17 @@ export async function processOrder(
   const log = createRun('telegram_message', item)
 
   try {
-    await sendStatus(`🏠 *Maid402* is on it — ordering *${item}*...`)
+    await sendStatus(`🏠 *Maid402* is on it — ordering *${esc(item)}*\\.\\.\\.`)
     log.step('start_order', 'agent', { status: 'success', item })
 
     // ── Step 1: Load agent memory (preferences) ──────────────────
     try {
       const profile = await loadPreferenceProfile()
       log.step('load_memory', 'storacha', { status: 'success', message: `Loaded ${profile.savedItems.length} saved items` })
+      await sendStatus(
+        `🧠 *Memory loaded* from Storacha \\(${profile.savedItems.length} saved items, ` +
+        `${profile.orderHistory.length} past orders\\)`
+      )
     } catch {
       log.step('load_memory', 'storacha', { status: 'skipped', message: 'Storacha not configured' })
     }
@@ -78,7 +82,7 @@ export async function processOrder(
     try {
       const budget = await checkBudget('groceries', orderTotalINR)
       if (!budget.approved) {
-        await sendStatus(`🚫 *Budget cap reached!*\nWeekly grocery budget (₹500) is exhausted.\nRemaining: ₹${budget.remainingINR}`)
+        await sendStatus(`🚫 *Budget cap reached\\!*\nWeekly grocery budget \\(₹500\\) is exhausted\\.\nRemaining: ₹${budget.remainingINR}`)
         log.step('near_budget_check', 'near-contract', { status: 'failed', budgetRemainingINR: budget.remainingINR, orderTotalINR })
         await log.finish('failed')
         return
@@ -93,13 +97,19 @@ export async function processOrder(
     const context = await getSession(chatId)
 
     // ── Step 4: x402 attempt ──────────────────────────────────────
-    await sendStatus(`💳 Attempting x402 payment...`)
+    await sendStatus(`💳 *Processing x402 payment* \\(Base Sepolia USDC\\)\\.\\.\\.`)
     const paymentResult = await routePayment(context, orderTotalINR, log)
     const walletUsed    = paymentResult.walletUsed
 
     if (paymentResult.x402Settled) {
       log.step('x402_attempt', 'x402-client', { status: 'success', fallback: undefined })
-      await sendStatus(`✅ *x402 payment settled!*`)
+      const txHash = paymentResult.txHash ?? ''
+      const short  = txHash ? `${txHash.slice(0, 10)}…${txHash.slice(-6)}` : ''
+      const link   = txHash ? `https://sepolia.basescan.org/tx/${txHash}` : ''
+      await sendStatus(
+        `✅ *x402 payment settled on\\-chain\\!*\n` +
+        (txHash ? `💳 Tx: [${short}](${link})` : '')
+      )
     } else {
       log.step('x402_attempt', 'x402-client', { status: 'no_402_response', fallback: 'platform_wallet' })
     }
@@ -107,21 +117,21 @@ export async function processOrder(
     // ── Step 5: Find product ──────────────────────────────────────
     let selectedProduct = product
     if (!selectedProduct) {
-      await sendStatus(`🔍 Searching for *${item}*...`)
+      await sendStatus(`🔍 Searching Zepto for *${esc(item)}*\\.\\.\\.`)
       const results = await searchZeptoProducts(context, item)
       if (results.length === 0) {
-        await sendStatus(`❌ No products found for "${item}" on Zepto.`)
+        await sendStatus(`❌ *No products found* for "${esc(item)}" on Zepto\\.`)
         log.step('search', 'playwright', { status: 'failed', message: 'No results' })
         await log.finish('failed')
         return
       }
       selectedProduct = results[0]
       log.step('search', 'playwright', { status: 'success', item: selectedProduct.name })
-      await sendStatus(`✅ Found: *${selectedProduct.name}* (${selectedProduct.price})`)
+      await sendStatus(`✅ *Found:* ${esc(selectedProduct.name)} \\(${esc(selectedProduct.price ?? '—')}\\)`)
     }
 
     // ── Step 6: Add to cart + checkout (single page) ──────────────
-    await sendStatus(`🛒 Navigating Zepto checkout...`)
+    await sendStatus(`🛒 *Adding to cart* and navigating checkout\\.\\.\\.`)
     const zepto = await placeZeptoOrder(context, selectedProduct.name, selectedProduct.url)
 
     const priceText = zepto.price || selectedProduct.price
@@ -144,7 +154,7 @@ export async function processOrder(
     }
 
     // ── Step 8: Store receipt on Filecoin ─────────────────────────
-    await sendStatus(`📦 Storing receipt on Filecoin...`)
+    await sendStatus(`📦 *Archiving receipt* to Filecoin\\.\\.\\.`)
     let pieceCID = ''
     try {
       const receipt: OrderReceipt = {
@@ -163,7 +173,7 @@ export async function processOrder(
       }
       pieceCID = await uploadReceipt(receipt)
       log.step('store_receipt_filecoin', 'synapse-sdk', { status: 'success', pieceCID, network: 'filecoin-calibration' })
-      await sendStatus(`📄 Receipt stored: \`${pieceCID}\``)
+      await sendStatus(`📄 Receipt stored on Filecoin ✅`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       log.step('store_receipt_filecoin', 'synapse-sdk', { status: 'failed', error: msg })
@@ -188,25 +198,25 @@ export async function processOrder(
         timestamp: new Date().toISOString(),
       })
       log.step('update_memory', 'storacha', { status: 'success' })
-    } catch {
-      log.step('update_memory', 'storacha', { status: 'skipped' })
+      await sendStatus(`🗄️ *Order saved* to Storacha decentralised memory\\.`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log.step('update_memory', 'storacha', { status: 'skipped', error: msg })
+      await sendStatus(`⚠️ Storacha memory update skipped: ${esc(msg)}`)
     }
 
-    // ── Step 11: Confirmation ─────────────────────────────────────
-    const confirmation =
-      `📦 *Order Placed!*\n\n` +
-      `Item: ${zepto.item}\n` +
-      `Price: ${zepto.price}\n` +
-      `ETA: ${zepto.eta}\n` +
-      `Order ID: \`${zepto.zeptoOrderId}\`` +
-      (pieceCID ? `\nReceipt: \`${pieceCID.slice(0, 20)}…\` (Filecoin)` : '') +
-      (reputationTx ? `\nReputation updated ✅` : '')
-
-    log.step('telegram_confirm', 'grammy', {
-      status:  'success',
-      message: confirmation,
+    // ── Step 11: Rich confirmation card ──────────────────────────
+    const txHash = paymentResult.x402Settled ? (paymentResult as any).txHash : undefined
+    await notifyOrderComplete(chatId, {
+      item:    zepto.item,
+      price:   zepto.price,
+      eta:     zepto.eta,
+      txHash,
+      budget:  `₹${(500 - orderTotalINR).toFixed(0)} / ₹500 remaining`,
+      cid:     pieceCID || undefined,
     })
-    await sendStatus(confirmation)
+
+    log.step('telegram_confirm', 'grammy', { status: 'success', item: zepto.item })
     await log.finish('success')
 
   } catch (err) {
@@ -219,7 +229,7 @@ export async function processOrder(
       await giveFeedback(-1, 'order_failed', '')
     } catch { /* ignore */ }
 
-    await sendStatus(`❌ Order failed: ${message}`)
+    await sendStatus(`❌ *Order failed*\n\n${esc(message)}`)
     await log.finish('failed')
   }
 }
@@ -240,13 +250,11 @@ async function handleSearch(
 async function handleBudget(_chatId: number): Promise<string> {
   try {
     const budget = await checkBudget('groceries', 0)
-    return (
-      `💰 *Spend Caps (NEAR)*\n\n` +
-      `Groceries: ₹${budget.remainingINR} remaining this week\n` +
-      `Weekly cap: ₹500`
-    )
+    const used   = 500 - budget.remainingINR
+    // Return structured string that buildBudgetCard can parse: "used / total"
+    return `${used} / 500`
   } catch {
-    return '❌ Budget contract not configured — set NEAR_ACCOUNT_ID in .env'
+    return '❌ Budget contract not configured — set NEAR\\_ACCOUNT\\_ID in \\.env'
   }
 }
 
@@ -280,17 +288,17 @@ export async function handleNaturalLanguage(
     const context  = await getSession(chatId)
     const results  = await searchZeptoProducts(context, intent.items[0])
     if (results.length === 0) {
-      await sendStatus(`❌ No results found for "${intent.items[0]}".`)
+      await sendStatus(`❌ *No results* for *"${esc(intent.items[0])}"*\\.`)
     } else {
-      const list = results.map((p, i) => `*${i + 1}.* ${p.name} — ${p.price}`).join('\n')
-      await sendStatus(`🛒 *Results for "${intent.items[0]}":*\n\n${list}\n\nReply with a number to order, or /cancel.`)
+      const list = results.map((p, i) => `*${i + 1}\\.* ${esc(p.name)} — ${esc(p.price ?? '—')}`).join('\n')
+      await sendStatus(`🛒 *Results for "${esc(intent.items[0])}":*\n\n${list}\n\n_Reply with a number to order, or /cancel\\._`)
     }
     return true
   }
 
   if (intent.intent === 'budget') {
-    const msg = await handleBudget(chatId)
-    await sendStatus(msg)
+    const raw  = await handleBudget(chatId)
+    await sendStatus(buildBudgetCard(raw))
     return true
   }
 

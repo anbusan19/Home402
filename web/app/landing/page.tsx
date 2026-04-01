@@ -1,19 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+
+// ── Duna palette ──────────────────────────────────────────────────────
+
+const P = {
+  cream:    '#faf6ef',
+  sand:     '#f0eadf',
+  peach:    '#e0a880',
+  coral:    '#d4855a',
+  pink:     '#c88aa8',
+  lavender: '#9a6db8',
+  purple:   '#7a5a9a',
+  sage:     '#5a8a5a',
+  olive:    '#4a7a4a',
+  teal:     '#4a9a92',
+  gold:     '#c49050',
+  amber:    '#a87838',
+  sky:      '#6aaccc',
+  ink:      '#1a1815',
+  muted:    '#5a4a3a',
+  subtle:   '#8a7a68',
+  border:   '#ddd5c8',
+}
 
 // ── Data ──────────────────────────────────────────────────────────────
 
 const STATS = [
-  { value: '10.4×', label: 'Faster than manual ordering' },
-  { value: '94%',   label: 'Order success rate' },
-  { value: '3.2×',  label: 'Savings vs. store visits' },
+  { value: '10.4×', label: 'Faster than manual ordering',   color: P.peach },
+  { value: '94%',   label: 'Order success rate',            color: P.lavender },
+  { value: '3.2×',  label: 'Savings vs. store visits',      color: P.sage },
 ]
 
 const FEATURES = [
   {
     tag: 'Voice-to-Cart',
+    accent: P.peach,
     headline: 'Just say what you need — Maid402 handles the rest',
     description:
       'No more browsing through long product lists. Describe what you want in plain language and your autonomous home agent finds, compares, and orders it instantly.',
@@ -26,6 +50,7 @@ const FEATURES = [
   },
   {
     tag: 'x402 Payments',
+    accent: P.lavender,
     headline: 'Machine-to-machine payments, fully automated',
     description:
       'Powered by the x402 protocol — your agent can pay for orders directly on Base Sepolia using USDC. No login, no saved card, no friction.',
@@ -38,6 +63,7 @@ const FEATURES = [
   },
   {
     tag: 'Budget Aware',
+    accent: P.sage,
     headline: 'Your agent tracks spending so you don\'t have to',
     description:
       'Set a weekly or monthly budget. Maid402 monitors every purchase and alerts you before you go over — or just blocks the order automatically.',
@@ -49,6 +75,7 @@ const FEATURES = [
   },
   {
     tag: 'Open API',
+    accent: P.teal,
     headline: 'Build on top of Maid402 with our public API',
     description:
       'The ordering layer is exposed as a paid REST API. Perfect for developers building household automation tools, smart home integrations, or budget dashboards.',
@@ -60,29 +87,45 @@ const FEATURES = [
   },
 ]
 
-const TESTIMONIALS = [
-  {
-    quote: 'Maid402 saved me 3 hours a week. I just say what I need and it handles everything — including the payment.',
-    name: 'Priya S.',
-    role: 'Remote Designer',
-  },
-  {
-    quote: 'The x402 payment integration is brilliant. Zero login, zero friction. My orders just happen.',
-    name: 'Arjun M.',
-    role: 'Software Engineer',
-  },
-  {
-    quote: "I gave it a ₹3,000/month budget and it's never gone over. It's like having a very diligent assistant.",
-    name: 'Kavya R.',
-    role: 'Entrepreneur',
-  },
+const SPONSORS = [
+  { name: 'Filecoin',  src: '/filecoin-logo.svg',   w: 100, h: 28 },
+  { name: 'NEAR',      src: '/near-logo (1).svg',    w: 80,  h: 24 },
+  { name: 'Storacha',  src: '/storacha-logo.svg',     w: 100, h: 24 },
+  { name: 'Impulse',   src: '/impulse-logo.png',      w: 90,  h: 24 },
 ]
+
+// ── Scroll-reveal hook ────────────────────────────────────────────────
+
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('visible'); obs.unobserve(el) } },
+      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return ref
+}
+
+function Reveal({ className = 'reveal', delay = 0, children, style }: {
+  className?: string; delay?: number; children: React.ReactNode; style?: React.CSSProperties
+}) {
+  const ref = useReveal()
+  return (
+    <div ref={ref} className={className} style={{ transitionDelay: `${delay}s`, ...style }}>
+      {children}
+    </div>
+  )
+}
 
 // ── Component ─────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY)
@@ -91,7 +134,7 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div style={{ background: '#f5f0e8', color: '#1a1915', fontFamily: "'Styrene A Web', 'Styrene A', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif", minHeight: '100vh' }}>
+    <div style={{ background: P.cream, color: P.ink, fontFamily: "'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif", minHeight: '100vh' }}>
 
       {/* ── NAV ── */}
       <nav style={{
@@ -105,21 +148,20 @@ export default function LandingPage() {
         justifyContent:  'space-between',
         padding:         '0 40px',
         height:          56,
-        background:      scrollY > 20 ? 'rgba(250,247,242,0.92)' : 'rgba(250,247,242,0)',
+        background:      scrollY > 20 ? 'rgba(250,246,239,0.92)' : 'rgba(250,246,239,0)',
         backdropFilter:  scrollY > 20 ? 'blur(12px)' : 'none',
-        borderBottom:    scrollY > 20 ? '1px solid #e4ddd0' : '1px solid transparent',
-        transition:      'background 0.3s, border-color 0.3s, backdrop-filter 0.3s',
+        borderBottom:    scrollY > 20 ? `1px solid ${P.border}` : '1px solid transparent',
+        transition:      'background 0.4s, border-color 0.4s, backdrop-filter 0.4s',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={logoMark}>🏠</div>
-          <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: '#1a1915' }}>Maid402</span>
+          <Image src="/maid402-logo.png" alt="Maid402" width={28} height={28} style={{ borderRadius: 6 }} />
+          <span style={{ fontWeight: 500, fontSize: 14, letterSpacing: '0.04em', color: P.ink }}>Maid402</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 14, color: '#6a5a4a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 13, color: P.muted }}>
           {['Features', 'Pricing', 'API', 'Blog'].map(item => (
-            <a key={item} href={`#${item.toLowerCase()}`} style={{ textDecoration: 'none', color: 'inherit', transition: 'color 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#c08b4a')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#6a5a4a')}>
+            <a key={item} href={`#${item.toLowerCase()}`} className="landing-link"
+              style={{ textDecoration: 'none', color: 'inherit' }}>
               {item}
             </a>
           ))}
@@ -128,30 +170,30 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link href="/" style={{
             background:   'transparent',
-            border:       '1px solid #d4cbbf',
+            border:       `1px solid ${P.border}`,
             borderRadius: 20,
             padding:      '7px 18px',
             color:        '#5a4a3a',
-            fontSize:     13.5,
-            fontWeight:   500,
+            fontSize:     13,
+            fontWeight:   400,
             cursor:       'pointer',
             textDecoration: 'none',
-            transition:   'border-color 0.15s, background 0.15s',
+            transition:   'border-color 0.25s, background 0.25s, transform 0.25s',
           }}>Open App</Link>
           <a href="#signup" style={{
-            background:   '#c08b4a',
+            background:   P.ink,
             border:       'none',
             borderRadius: 20,
             padding:      '7px 18px',
-            color:        '#fff',
-            fontSize:     13.5,
-            fontWeight:   600,
+            color:        P.cream,
+            fontSize:     13,
+            fontWeight:   500,
             cursor:       'pointer',
             textDecoration: 'none',
-            transition:   'background 0.15s',
+            transition:   'background 0.25s, transform 0.25s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#b8945e')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#c08b4a')}>
+          onMouseEnter={e => { e.currentTarget.style.background = '#2a2825'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = P.ink; e.currentTarget.style.transform = 'translateY(0)' }}>
             Get Started
           </a>
         </div>
@@ -178,13 +220,13 @@ export default function LandingPage() {
           backgroundPosition: 'center 30%',
           opacity:    0.55,
           transform:  `translateY(${scrollY * 0.25}px)`,
-          transition: 'transform 0.05s linear',
+          transition: 'transform 0.1s linear',
         }} />
         {/* Gradient overlay */}
         <div style={{
           position:   'absolute',
           inset:      0,
-          background: 'linear-gradient(to bottom, rgba(245,240,232,0.2) 0%, rgba(245,240,232,0.1) 40%, rgba(245,240,232,0.85) 90%, #f5f0e8 100%)',
+          background: `linear-gradient(to bottom, rgba(250,246,239,0.2) 0%, rgba(250,246,239,0.1) 40%, rgba(250,246,239,0.85) 90%, ${P.cream} 100%)`,
         }} />
 
         {/* Content */}
@@ -193,69 +235,90 @@ export default function LandingPage() {
             display:      'inline-flex',
             alignItems:   'center',
             gap:          7,
-            background:   'rgba(250,247,242,0.85)',
-            border:       '1px solid #e4ddd0',
+            background:   'rgba(250,246,239,0.85)',
+            border:       `1px solid ${P.border}`,
             borderRadius: 20,
             padding:      '5px 14px',
             marginBottom: 28,
             backdropFilter: 'blur(8px)',
+            animation:    'fadeInDown 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both',
           }}>
-            <span style={{ fontSize: 11, background: '#c08b4a', color: '#fff', borderRadius: 4, padding: '1px 7px', fontWeight: 700, letterSpacing: '0.05em' }}>x402</span>
-            <span style={{ fontSize: 13, color: '#7a6a5a', fontWeight: 500 }}>Powered by machine-to-machine payments</span>
+            <span style={{ fontSize: 10, background: P.ink, color: P.cream, borderRadius: 4, padding: '2px 8px', fontWeight: 400, letterSpacing: '0.1em', fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const }}>x402</span>
+            <span style={{ fontSize: 12, color: P.muted, fontWeight: 400 }}>Powered by machine-to-machine payments</span>
           </div>
 
           <h1 style={{
             fontSize:      'clamp(36px, 6vw, 72px)',
-            fontWeight:    700,
+            fontWeight:    500,
             lineHeight:    1.1,
-            letterSpacing: '-0.03em',
-            color:         '#1a1915',
+            letterSpacing: '-0.02em',
+            color:         P.ink,
             marginBottom:  20,
+            animation:     'fadeInUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.4s both',
           }}>
             The new standard in<br />
-            <span style={{ color: '#c08b4a' }}>home ordering</span>
+            <span style={{ color: P.coral }}>home ordering</span>
           </h1>
 
           <p style={{
             fontSize:     'clamp(16px, 2vw, 20px)',
-            color:        '#6a5a4a',
+            color:        P.muted,
             lineHeight:   1.65,
             maxWidth:     520,
             margin:       '0 auto 36px',
+            animation:    'fadeInUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.6s both',
           }}>
             Your autonomous home agent that orders groceries, tracks your budget, and pays for itself — all through natural conversation.
           </p>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', animation: 'fadeInUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.8s both' }}>
             <Link href="/" style={ctaBtn}>
               Try Maid402 →
             </Link>
             <a href="#features" style={outlineBtn}>See how it works</a>
           </div>
 
+          {/* Sponsor logos strip */}
+          <div style={{
+            marginTop: 48,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16,
+            animation: 'fadeInUp 0.9s cubic-bezier(0.16,1,0.3,1) 1s both',
+          }}>
+            <span style={{ fontSize: 10, color: P.subtle, letterSpacing: '0.12em', textTransform: 'uppercase' as const, fontFamily: '"Geist Mono", monospace', fontWeight: 400 }}>Powered by</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {SPONSORS.map(s => (
+                <Image key={s.name} src={s.src} alt={s.name} width={s.w} height={s.h} style={{ opacity: 0.45, transition: 'opacity 0.3s ease', filter: 'grayscale(100%)' }} onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.filter = 'grayscale(0%)' }} onMouseLeave={e => { e.currentTarget.style.opacity = '0.45'; e.currentTarget.style.filter = 'grayscale(100%)' }} />
+              ))}
+            </div>
+          </div>
+
           {/* Mini chat preview */}
           <div style={{
             marginTop:    52,
-            background:   'rgba(250,247,242,0.88)',
-            border:       '1px solid #e8e0d0',
+            background:   'rgba(250,246,239,0.88)',
+            border:       `1px solid ${P.border}`,
             borderRadius: 20,
             padding:      '18px 22px',
             maxWidth:     480,
-            textAlign:    'left',
+            textAlign:    'left' as const,
             backdropFilter: 'blur(12px)',
-            boxShadow:    '0 4px 24px rgba(0,0,0,0.08)',
+            boxShadow:    '0 4px 24px rgba(0,0,0,0.06)',
             margin:       '52px auto 0',
+            animation:    'scaleIn 0.8s cubic-bezier(0.16,1,0.3,1) 1s both',
           }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
-              <div style={{ ...avatarStyle }}></div>
+              <div style={{ ...avatarStyle }} />
               <div style={agentBubbleStyle}>Order me Amul butter and 2L milk for tomorrow morning.</div>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div style={{ ...avatarStyle, background: 'linear-gradient(135deg, #d4a76a 0%, #c08b4a 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>M</div>
+              <div style={{ ...avatarStyle, background: P.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 400, letterSpacing: '0.06em' }}>M</div>
               <div style={agentBubbleStyle}>
                 ✓ Amul Butter 500g — ₹265 (BigBasket)<br />
                 ✓ Amul Milk 2L — ₹108 (Swiggy Instamart)<br />
-                <span style={{ color: '#c08b4a', fontWeight: 600 }}>Ordering now via 1 USDC payment…</span>
+                <span style={{ color: P.ink, fontWeight: 500 }}>Ordering now via 1 USDC payment…</span>
               </div>
             </div>
           </div>
@@ -264,35 +327,22 @@ export default function LandingPage() {
 
       {/* ── STATS ── */}
       <section style={{ padding: '64px 40px', maxWidth: 1000, margin: '0 auto' }}>
-        <p style={{ fontSize: 13, color: '#9b8b7a', textAlign: 'center', marginBottom: 40, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-          Designed for modern households
-        </p>
+        <Reveal>
+          <p style={{ fontSize: 11, color: P.subtle, textAlign: 'center', marginBottom: 40, letterSpacing: '0.1em', textTransform: 'uppercase' as const, fontFamily: '"Geist Mono", monospace', fontWeight: 400 }}>
+            Designed for modern households
+          </p>
+        </Reveal>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-          {STATS.map(stat => (
-            <div key={stat.value} style={statCard}>
-              <div style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#1a1915', marginBottom: 6 }}>
-                {stat.value}
-              </div>
-              <div style={{ fontSize: 14, color: '#7a6a5a', lineHeight: 1.5 }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Testimonial strip */}
-        <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-          {TESTIMONIALS.map(t => (
-            <div key={t.name} style={testimonialCard}>
-              <p style={{ fontSize: 14, color: '#4a3a2a', lineHeight: 1.7, marginBottom: 16, fontStyle: 'italic' }}>"{t.quote}"</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #d4a76a, #c08b4a)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                  {t.name[0]}
+          {STATS.map((stat, i) => (
+            <Reveal key={stat.value} delay={i * 0.12}>
+              <div style={statCard} className="landing-card">
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: stat.color, marginBottom: 18, transition: 'width 0.4s ease' }} />
+                <div style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500, letterSpacing: '-0.02em', color: P.ink, marginBottom: 6 }}>
+                  {stat.value}
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2a2010' }}>{t.name}</div>
-                  <div style={{ fontSize: 11.5, color: '#9b8b7a' }}>{t.role}</div>
-                </div>
+                <div style={{ fontSize: 14, color: P.muted, lineHeight: 1.5 }}>{stat.label}</div>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -301,7 +351,7 @@ export default function LandingPage() {
       <section style={{
         position:       'relative',
         overflow:       'hidden',
-        margin:         '0 0 0 0',
+        margin:         0,
         minHeight:      280,
         display:        'flex',
         alignItems:     'center',
@@ -315,20 +365,22 @@ export default function LandingPage() {
           backgroundSize:      'cover',
           backgroundPosition:  'center',
           opacity:             0.7,
+          transform:           `translateY(${(scrollY - 800) * 0.1}px)`,
+          transition:          'transform 0.1s linear',
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(to bottom, rgba(245,240,232,0.5), rgba(245,240,232,0.65))',
+          background: `linear-gradient(to bottom, rgba(250,246,239,0.5), rgba(250,246,239,0.65))`,
         }} />
-        <div style={{ position: 'relative', zIndex: 1, padding: '60px 24px' }}>
-          <h2 style={{ fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 700, letterSpacing: '-0.025em', color: '#1a1915', marginBottom: 12 }}>
+        <Reveal style={{ position: 'relative', zIndex: 1, padding: '60px 24px' }}>
+          <h2 style={{ fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 500, letterSpacing: '-0.02em', color: P.ink, marginBottom: 12 }}>
             A life less errand-filled
           </h2>
-          <p style={{ fontSize: 16, color: '#6a5a4a', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
+          <p style={{ fontSize: 16, color: P.muted, marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
             Maid402 takes the grind out of home management so you can focus on what matters.
           </p>
           <Link href="/" style={ctaBtn}>Start Ordering Free →</Link>
-        </div>
+        </Reveal>
       </section>
 
       {/* ── FEATURES ── */}
@@ -340,71 +392,74 @@ export default function LandingPage() {
             gap:           56,
             alignItems:    'center',
             marginBottom:  80,
-            direction:     i % 2 === 1 ? 'rtl' : 'ltr' as any,
+            direction:     i % 2 === 1 ? 'rtl' : 'ltr' as React.CSSProperties['direction'],
           }}>
             {/* Text side */}
-            <div style={{ direction: 'ltr' }}>
-              <span style={tagBadge}>{feature.tag}</span>
-              <h2 style={{ fontSize: 'clamp(20px, 2.5vw, 30px)', fontWeight: 700, letterSpacing: '-0.025em', color: '#1a1915', marginBottom: 14, lineHeight: 1.3, marginTop: 12 }}>
+            <Reveal className={i % 2 === 0 ? 'reveal-left' : 'reveal-right'} style={{ direction: 'ltr' }}>
+              <span style={{ ...tagBadge, borderColor: `${feature.accent}40`, background: `${feature.accent}18`, color: feature.accent }}>{feature.tag}</span>
+              <h2 style={{ fontSize: 'clamp(20px, 2.5vw, 30px)', fontWeight: 500, letterSpacing: '-0.02em', color: P.ink, marginBottom: 14, lineHeight: 1.3, marginTop: 12 }}>
                 {feature.headline}
               </h2>
-              <p style={{ fontSize: 15, color: '#6a5a4a', lineHeight: 1.7, marginBottom: 20 }}>
+              <p style={{ fontSize: 15, color: P.muted, lineHeight: 1.7, marginBottom: 20 }}>
                 {feature.description}
               </p>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {feature.bullets.map(b => (
                   <li key={b} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#4a3a2a' }}>
-                    <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(192,139,74,0.15)', border: '1px solid rgba(192,139,74,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#c08b4a', flexShrink: 0 }}>✓</span>
+                    <span style={{ width: 18, height: 18, borderRadius: '50%', background: `${feature.accent}20`, border: `1px solid ${feature.accent}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: feature.accent, flexShrink: 0, transition: 'transform 0.2s ease' }}>✓</span>
                     {b}
                   </li>
                 ))}
               </ul>
-            </div>
+            </Reveal>
 
             {/* Demo card */}
-            <div style={{ direction: 'ltr' }}>
-              <div style={demoCard}>
-                <div style={{ borderBottom: '1px solid #e8e0d0', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, background: '#f5f0e8' }}>
+            <Reveal className={i % 2 === 0 ? 'reveal-right' : 'reveal-left'} delay={0.15} style={{ direction: 'ltr' }}>
+              <div style={{ ...demoCard, borderColor: `${feature.accent}30` }} className="landing-card">
+                <div style={{ borderBottom: `1px solid ${feature.accent}25`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, background: `${feature.accent}08` }}>
                   {[...Array(3)].map((_, di) => (
-                    <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', background: di === 0 ? '#e8a87c' : di === 1 ? '#d4c56a' : '#7ac87a', opacity: 0.8 }} />
+                    <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', background: di === 0 ? P.coral : di === 1 ? P.gold : P.sage, opacity: 0.8, transition: 'transform 0.2s ease' }} />
                   ))}
-                  <span style={{ fontSize: 11.5, color: '#9b8b7a', marginLeft: 4 }}>{feature.tag}</span>
+                  <span style={{ fontSize: 10, color: feature.accent, marginLeft: 4, fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>{feature.tag}</span>
                 </div>
                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {feature.demo.map((line, di) => (
                     <div key={di} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 10.5, color: '#c08b4a', fontWeight: 700, fontFamily: '"SF Mono", monospace', paddingTop: 2, flexShrink: 0, minWidth: 54 }}>{line.label}</span>
-                      <span style={{ fontSize: 13, color: '#3a2a1a', lineHeight: 1.6, fontFamily: '"SF Mono", "Fira Code", monospace', whiteSpace: 'pre-wrap' as const }}>{line.text}</span>
+                      <span style={{ fontSize: 10, color: feature.accent, fontWeight: 400, fontFamily: '"Geist Mono", monospace', paddingTop: 2, flexShrink: 0, minWidth: 54, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>{line.label}</span>
+                      <span style={{ fontSize: 12.5, color: '#3a2a1a', lineHeight: 1.6, fontFamily: '"Geist Mono", monospace', whiteSpace: 'pre-wrap' as const }}>{line.text}</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
         ))}
       </section>
 
       {/* ── API SECTION ── */}
-      <section id="api" style={{ background: '#faf7f2', padding: '72px 40px', borderTop: '1px solid #e4ddd0', borderBottom: '1px solid #e4ddd0' }}>
+      <section id="api" style={{ background: P.sand, padding: '72px 40px', borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}` }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 44 }}>
-            <span style={tagBadge}>For Developers</span>
-            <h2 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, letterSpacing: '-0.025em', color: '#1a1915', marginTop: 12, marginBottom: 12 }}>
-              Integrate home ordering into anything
-            </h2>
-            <p style={{ fontSize: 15, color: '#6a5a4a', maxWidth: 480, margin: '0 auto' }}>
-              Our public API is pay-per-use via x402. No API keys, no subscription — just call and pay in USDC.
-            </p>
-          </div>
-
-          <div style={{ background: '#1a1915', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              {[...Array(3)].map((_, i) => (
-                <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: i === 0 ? '#e8a87c' : i === 1 ? '#d4c56a' : '#7ac87a', opacity: 0.7 }} />
-              ))}
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>Terminal</span>
+          <Reveal>
+            <div style={{ textAlign: 'center', marginBottom: 44 }}>
+              <span style={{ ...tagBadge, borderColor: `${P.teal}40`, background: `${P.teal}18`, color: P.teal }}>For Developers</span>
+              <h2 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 500, letterSpacing: '-0.02em', color: P.ink, marginTop: 12, marginBottom: 12 }}>
+                Integrate home ordering into anything
+              </h2>
+              <p style={{ fontSize: 15, color: P.muted, maxWidth: 480, margin: '0 auto' }}>
+                Our public API is pay-per-use via x402. No API keys, no subscription — just call and pay in USDC.
+              </p>
             </div>
-            <pre style={{ margin: 0, padding: '24px', fontSize: 13, lineHeight: 1.8, fontFamily: '"SF Mono", "Fira Code", monospace', color: '#e8e0d0', overflowX: 'auto' as const }}>
+          </Reveal>
+
+          <Reveal className="reveal-scale" delay={0.15}>
+            <div style={{ background: P.ink, borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+              <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: i === 0 ? P.coral : i === 1 ? P.gold : P.sage, opacity: 0.7, transition: 'opacity 0.2s ease' }} />
+                ))}
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 8, fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Terminal</span>
+              </div>
+              <pre style={{ margin: 0, padding: '24px', fontSize: 12.5, lineHeight: 1.8, fontFamily: '"Geist Mono", monospace', color: '#e8e0d0', overflowX: 'auto' as const }}>
 {`# Call the API — no key needed, just pay 1 USDC per order
 curl -X POST https://maid402.app/api/order \\
   -H "Content-Type: application/json" \\
@@ -415,20 +470,23 @@ curl -X POST https://maid402.app/api/order \\
 
 # → 200 OK
 # {"status":"ordered","item":"Amul milk 1L","eta":"22 min","txHash":"0xabc..."}`}
-            </pre>
-          </div>
+              </pre>
+            </div>
+          </Reveal>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
             {[
-              { icon: '⚡', title: 'Instant', desc: 'No registration or API keys required' },
-              { icon: '💰', title: '1 USDC / call', desc: 'Pay only for what you use on Base Sepolia' },
-              { icon: '🌊', title: 'SSE Streaming', desc: 'Real-time order status as it progresses' },
-            ].map(item => (
-              <div key={item.title} style={{ background: '#faf7f2', border: '1px solid #e4ddd0', borderRadius: 12, padding: '16px 18px' }}>
-                <div style={{ fontSize: 20, marginBottom: 8 }}>{item.icon}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1915', marginBottom: 4 }}>{item.title}</div>
-                <div style={{ fontSize: 13, color: '#8a7a6a', lineHeight: 1.5 }}>{item.desc}</div>
-              </div>
+              { icon: '⚡', title: 'Instant', desc: 'No registration or API keys required', accent: P.peach },
+              { icon: '💰', title: '1 USDC / call', desc: 'Pay only for what you use on Base Sepolia', accent: P.lavender },
+              { icon: '🌊', title: 'SSE Streaming', desc: 'Real-time order status as it progresses', accent: P.teal },
+            ].map((item, i) => (
+              <Reveal key={item.title} delay={0.3 + i * 0.1}>
+                <div style={{ background: P.cream, border: `1px solid ${P.border}`, borderRadius: 12, padding: '16px 18px' }} className="landing-card">
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>{item.icon}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: P.ink, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 13, color: '#8a7a6a', lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -436,13 +494,15 @@ curl -X POST https://maid402.app/api/order \\
 
       {/* ── PRICING ── */}
       <section id="pricing" style={{ padding: '80px 40px', maxWidth: 860, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <span style={tagBadge}>Pricing</span>
-          <h2 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 700, letterSpacing: '-0.025em', color: '#1a1915', marginTop: 12, marginBottom: 10 }}>
-            Simple, pay-as-you-go
-          </h2>
-          <p style={{ fontSize: 15, color: '#6a5a4a' }}>No subscriptions. No hidden fees. Just pay for what you order.</p>
-        </div>
+        <Reveal>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <span style={{ ...tagBadge, borderColor: `${P.pink}40`, background: `${P.pink}18`, color: P.pink }}>Pricing</span>
+            <h2 style={{ fontSize: 'clamp(22px, 3vw, 36px)', fontWeight: 500, letterSpacing: '-0.02em', color: P.ink, marginTop: 12, marginBottom: 10 }}>
+              Simple, pay-as-you-go
+            </h2>
+            <p style={{ fontSize: 15, color: P.muted }}>No subscriptions. No hidden fees. Just pay for what you order.</p>
+          </div>
+        </Reveal>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           {[
@@ -464,50 +524,57 @@ curl -X POST https://maid402.app/api/order \\
               href: '#api',
               highlight: true,
             },
-          ].map(plan => (
-            <div key={plan.name} style={{
-              background:   plan.highlight ? '#1a1915' : '#faf7f2',
-              border:       plan.highlight ? '1px solid #3a2a1a' : '1px solid #e4ddd0',
-              borderRadius: 20,
-              padding:      '32px 28px',
-              position:     'relative',
-              overflow:     'hidden',
-            }}>
-              {plan.highlight && (
-                <div style={{ position: 'absolute', top: 16, right: 16, background: '#c08b4a', color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, letterSpacing: '0.05em' }}>POPULAR</div>
-              )}
-              <div style={{ fontSize: 13, fontWeight: 600, color: plan.highlight ? '#d4a76a' : '#c08b4a', marginBottom: 8 }}>{plan.name}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.04em', color: plan.highlight ? '#f5f0e8' : '#1a1915' }}>{plan.price}</span>
+          ].map((plan, i) => (
+            <Reveal key={plan.name} delay={i * 0.15}>
+              <div style={{
+                background:   plan.highlight ? P.ink : P.cream,
+                border:       plan.highlight ? '1px solid #3a2a1a' : `1px solid ${P.border}`,
+                borderRadius: 20,
+                padding:      '32px 28px',
+                position:     'relative' as const,
+                overflow:     'hidden',
+                transition:   'transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease',
+              }} className="landing-card">
+                {plan.highlight && (
+                  <div style={{ position: 'absolute', top: 16, right: 16, background: P.ink, color: P.cream, fontSize: 9.5, fontWeight: 400, padding: '2px 10px', borderRadius: 20, letterSpacing: '0.1em', fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const }}>Popular</div>
+                )}
+                <div style={{ fontSize: 12, fontWeight: 400, color: plan.highlight ? P.lavender : P.subtle, marginBottom: 8, fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>{plan.name}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.04em', color: plan.highlight ? P.cream : P.ink }}>{plan.price}</span>
+                </div>
+                <div style={{ fontSize: 13, color: plan.highlight ? '#8a7a6a' : P.subtle, marginBottom: 24 }}>{plan.sub}</div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {plan.features.map(f => (
+                    <li key={f} style={{ display: 'flex', gap: 10, fontSize: 14, color: plan.highlight ? '#e8ddd0' : '#4a3a2a', alignItems: 'center' }}>
+                      <span style={{ color: plan.highlight ? P.teal : P.sage, flexShrink: 0 }}>✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+                <a href={plan.href} style={{
+                  display:     'block',
+                  textAlign:   'center' as const,
+                  background:  plan.highlight ? P.coral : 'transparent',
+                  border:      plan.highlight ? 'none' : `1px solid ${P.border}`,
+                  borderRadius: 12,
+                  padding:     '11px',
+                  color:       plan.highlight ? '#fff' : '#5a4a3a',
+                  fontSize:    14,
+                  fontWeight:  500,
+                  textDecoration: 'none',
+                  transition:  'opacity 0.2s, transform 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.opacity = '0.9' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.opacity = '1' }}>
+                  {plan.cta}
+                </a>
               </div>
-              <div style={{ fontSize: 13, color: plan.highlight ? '#8a7a6a' : '#9b8b7a', marginBottom: 24 }}>{plan.sub}</div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {plan.features.map(f => (
-                  <li key={f} style={{ display: 'flex', gap: 10, fontSize: 14, color: plan.highlight ? '#e8ddd0' : '#4a3a2a', alignItems: 'center' }}>
-                    <span style={{ color: '#c08b4a', flexShrink: 0 }}>✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              <a href={plan.href} style={{
-                display:     'block',
-                textAlign:   'center',
-                background:  plan.highlight ? '#c08b4a' : 'transparent',
-                border:      plan.highlight ? 'none' : '1px solid #d4cbbf',
-                borderRadius: 12,
-                padding:     '11px',
-                color:       plan.highlight ? '#fff' : '#5a4a3a',
-                fontSize:    14,
-                fontWeight:  600,
-                textDecoration: 'none',
-                transition:  'opacity 0.15s',
-              }}>{plan.cta}</a>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ position: 'relative', overflow: 'hidden', borderTop: '1px solid #e4ddd0', marginTop: 0 }}>
+      <footer style={{ position: 'relative', overflow: 'hidden', borderTop: `1px solid ${P.border}`, marginTop: 0 }}>
         <div style={{
           position:            'absolute',
           inset:               0,
@@ -517,44 +584,48 @@ curl -X POST https://maid402.app/api/order \\
           opacity:             0.3,
         }} />
         <div style={{ position: 'relative', zIndex: 1, padding: '56px 40px 32px', maxWidth: 1060, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 40, marginBottom: 48 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={logoMark}>🏠</div>
-                <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1915' }}>Maid402</span>
+          <Reveal>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 40, marginBottom: 48 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <Image src="/maid402-logo.png" alt="Maid402" width={28} height={28} style={{ borderRadius: 6 }} />
+                  <span style={{ fontWeight: 500, fontSize: 14, color: P.ink }}>Maid402</span>
+                </div>
+                <p style={{ fontSize: 13.5, color: P.muted, lineHeight: 1.7, maxWidth: 260 }}>
+                  Your autonomous home ordering agent. Powered by x402 machine-to-machine payments on Base.
+                </p>
               </div>
-              <p style={{ fontSize: 13.5, color: '#7a6a5a', lineHeight: 1.7, maxWidth: 260 }}>
-                Your autonomous home ordering agent. Powered by x402 machine-to-machine payments on Base.
-              </p>
+              {[
+                { title: 'Product', links: ['Features', 'Pricing', 'API Docs', 'Changelog'] },
+                { title: 'Resources', links: ['GitHub', 'Discord', 'Blog', 'Status'] },
+                { title: 'Legal', links: ['Privacy', 'Terms', 'Cookie Policy'] },
+              ].map(col => (
+                <div key={col.title}>
+                  <div style={{ fontSize: 11, fontWeight: 400, color: P.ink, letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: '"Geist Mono", monospace' }}>{col.title}</div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {col.links.map(link => (
+                      <li key={link}>
+                        <a href="#" className="landing-link" style={{ fontSize: 13.5, color: P.muted, textDecoration: 'none' }}>
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-            {[
-              { title: 'Product', links: ['Features', 'Pricing', 'API Docs', 'Changelog'] },
-              { title: 'Resources', links: ['GitHub', 'Discord', 'Blog', 'Status'] },
-              { title: 'Legal', links: ['Privacy', 'Terms', 'Cookie Policy'] },
-            ].map(col => (
-              <div key={col.title}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1915', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 14 }}>{col.title}</div>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {col.links.map(link => (
-                    <li key={link}>
-                      <a href="#" style={{ fontSize: 13.5, color: '#7a6a5a', textDecoration: 'none', transition: 'color 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#c08b4a')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#7a6a5a')}>
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          </Reveal>
 
-          <div style={{ borderTop: '1px solid #e4ddd0', paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <p style={{ fontSize: 13, color: '#9b8b7a' }}>© 2025 Maid402. Built on x402.</p>
+          <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <p style={{ fontSize: 13, color: P.subtle }}>© 2025 Maid402. Built on x402.</p>
             <div style={{ display: 'flex', gap: 6 }}>
-              {['x402', 'Base Sepolia', 'USDC'].map(badge => (
-                <span key={badge} style={{ background: '#f0ebe0', border: '1px solid #e4ddd0', borderRadius: 20, padding: '3px 10px', fontSize: 11.5, color: '#8a7a6a', fontWeight: 500 }}>
-                  {badge}
+              {[
+                { label: 'x402', color: P.coral },
+                { label: 'Base Sepolia', color: P.lavender },
+                { label: 'USDC', color: P.teal },
+              ].map(badge => (
+                <span key={badge.label} style={{ background: `${badge.color}15`, border: `1px solid ${badge.color}30`, borderRadius: 20, padding: '3px 10px', fontSize: 10.5, color: badge.color, fontWeight: 400, fontFamily: '"Geist Mono", monospace', textTransform: 'uppercase' as const, letterSpacing: '0.08em', transition: 'transform 0.2s ease' }}>
+                  {badge.label}
                 </span>
               ))}
             </div>
@@ -567,84 +638,70 @@ curl -X POST https://maid402.app/api/order \\
 
 // ── Shared style objects ──────────────────────────────────────────────
 
-const logoMark: React.CSSProperties = {
-  width:           32,
-  height:          32,
-  borderRadius:    9,
-  background:      'linear-gradient(135deg, #d4a76a 0%, #c08b4a 100%)',
-  display:         'flex',
-  alignItems:      'center',
-  justifyContent:  'center',
-  fontSize:        16,
-  flexShrink:      0,
-  boxShadow:       '0 1px 3px rgba(192,139,74,0.35)',
-}
+
 
 const ctaBtn: React.CSSProperties = {
   display:         'inline-flex',
   alignItems:      'center',
-  background:      '#c08b4a',
-  color:           '#fff',
+  background:      P.ink,
+  color:           P.cream,
   border:          'none',
   borderRadius:    24,
   padding:         '12px 26px',
-  fontSize:        15,
-  fontWeight:      600,
+  fontSize:        13,
+  fontWeight:      500,
   cursor:          'pointer',
   textDecoration:  'none',
-  letterSpacing:   '-0.01em',
-  boxShadow:       '0 2px 10px rgba(192,139,74,0.35)',
-  transition:      'background 0.15s, transform 0.15s',
+  letterSpacing:   '0.02em',
+  boxShadow:       '0 2px 10px rgba(0,0,0,0.12)',
+  transition:      'background 0.25s, transform 0.25s, box-shadow 0.25s',
 }
 
 const outlineBtn: React.CSSProperties = {
   display:       'inline-flex',
   alignItems:    'center',
-  background:    'rgba(250,247,242,0.8)',
+  background:    'rgba(250,246,239,0.8)',
   color:         '#5a4a3a',
-  border:        '1px solid #d4cbbf',
+  border:        `1px solid ${P.border}`,
   borderRadius:  24,
   padding:       '12px 26px',
-  fontSize:      15,
-  fontWeight:    500,
+  fontSize:      13,
+  fontWeight:    400,
   cursor:        'pointer',
   textDecoration: 'none',
   backdropFilter: 'blur(8px)',
-  transition:    'border-color 0.15s, background 0.15s',
+  transition:    'border-color 0.25s, background 0.25s, transform 0.25s',
 }
 
 const tagBadge: React.CSSProperties = {
   display:       'inline-block',
-  background:    'rgba(192,139,74,0.12)',
-  border:        '1px solid rgba(192,139,74,0.25)',
+  background:    `rgba(26,24,21,0.06)`,
+  border:        `1px solid rgba(26,24,21,0.12)`,
   borderRadius:  20,
   padding:       '4px 12px',
-  fontSize:      12,
-  fontWeight:    600,
-  color:         '#c08b4a',
-  letterSpacing: '0.04em',
+  fontSize:      10,
+  fontWeight:    400,
+  color:         '#6a6050',
+  letterSpacing: '0.1em',
+  fontFamily:    '"Geist Mono", monospace',
+  textTransform: 'uppercase',
+  transition:    'background 0.3s ease',
 }
 
 const statCard: React.CSSProperties = {
-  background:   '#faf7f2',
-  border:       '1px solid #e4ddd0',
+  background:   P.cream,
+  border:       `1px solid ${P.border}`,
   borderRadius: 16,
   padding:      '24px 28px',
   textAlign:    'center',
   boxShadow:    '0 1px 4px rgba(0,0,0,0.04)',
 }
 
-const testimonialCard: React.CSSProperties = {
-  background:   '#faf7f2',
-  border:       '1px solid #e4ddd0',
-  borderRadius: 14,
-  padding:      '20px 22px',
-  boxShadow:    '0 1px 4px rgba(0,0,0,0.04)',
-}
+
 
 const demoCard: React.CSSProperties = {
-  background:   '#faf7f2',
-  border:       '1px solid #e4ddd0',
+  background:   P.cream,
+  border:       `1px solid ${P.border}`,
   borderRadius: 14,
   overflow:     'hidden',
   boxShadow:    '0 2px 12px rgba(0,0,0,0.06)',
@@ -654,13 +711,13 @@ const avatarStyle: React.CSSProperties = {
   width:        32,
   height:       32,
   borderRadius: 8,
-  background:   '#ede8de',
+  background:   P.sand,
   flexShrink:   0,
 }
 
 const agentBubbleStyle: React.CSSProperties = {
-  background:   '#ede8de',
-  border:       '1px solid #e0d8c8',
+  background:   P.sand,
+  border:       `1px solid ${P.border}`,
   borderRadius: '4px 14px 14px 14px',
   padding:      '10px 14px',
   fontSize:     13.5,

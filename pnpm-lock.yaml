@@ -14,6 +14,9 @@ importers:
       '@web3-storage/w3up-client':
         specifier: ^16.0.0
         version: 16.5.2(encoding@0.1.13)
+      '@x402/evm':
+        specifier: ^2.8.0
+        version: 2.8.0(typescript@5.9.3)
       '@x402/fetch':
         specifier: ^2.2.0
         version: 2.8.0(typescript@5.9.3)
@@ -587,6 +590,9 @@ packages:
 
   '@x402/core@2.8.0':
     resolution: {integrity: sha512-ppsvSzyWzlqG+26dcNzOXo/YLaHreWc3lmdv9W81mEhLDWMdPpiGyRjSUyO9BQFuQJMQppvqA7ujUbLE/EaDkg==}
+
+  '@x402/evm@2.8.0':
+    resolution: {integrity: sha512-/w1WvoXIZdaJcmvR8p9/ow1n8GjNWeeVnpoorjfLv2oBbT06r33clcfYwhH/COJp/K0aOvmol0elx5h2IQCnOA==}
 
   '@x402/fetch@2.8.0':
     resolution: {integrity: sha512-GEY6DS5iy/PxwfbdfIBY0RsxrHnHylKmXMqzL8BJdSaerm3w5XhTkNCOG6JyaIt1CpQccYXbzlOEpqFJQNaNAA==}
@@ -2818,6 +2824,16 @@ snapshots:
   '@x402/core@2.8.0':
     dependencies:
       zod: 3.25.76
+
+  '@x402/evm@2.8.0(typescript@5.9.3)':
+    dependencies:
+      '@x402/core': 2.8.0
+      viem: 2.47.6(typescript@5.9.3)(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
 
   '@x402/fetch@2.8.0(typescript@5.9.3)':
     dependencies:

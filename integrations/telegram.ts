@@ -45,6 +45,150 @@ const pendingSearches = new Map<number, ZeptoProduct[]>()
 
 let bot: Bot<Context> | null = null
 
+// ── Formatting helpers ────────────────────────────────────────────────
+
+/** Escape special chars for Telegram MarkdownV2 */
+function esc(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, '\\$&')
+}
+
+/** Build a visual progress bar (filled/empty blocks) */
+function progressBar(pct: number, width = 10): string {
+  const filled = Math.round((pct / 100) * width)
+  return '█'.repeat(filled) + '░'.repeat(width - filled)
+}
+
+/** Format USDC micro-units to human-readable */
+function formatUsdc(microUsdc: string | number): string {
+  return `$${(Number(microUsdc) / 1_000_000).toFixed(2)} USDC`
+}
+
+// ── Message templates ─────────────────────────────────────────────────
+
+const WELCOME = `\
+🏠 *Maid402 — Autonomous Home Commerce Agent*
+
+I handle your household shopping end\\-to\\-end using crypto payment rails\\.
+
+*What I can do:*
+🛒  Search & order from Zepto \\(10\\-min delivery\\)
+💳  Pay via x402 protocol \\(Base Sepolia USDC\\)
+🔒  Enforce your NEAR spend cap on\\-chain
+🧠  Predict restocks with AI \\(Impulse XGBoost\\)
+📦  Archive receipts to Filecoin
+
+*Commands:*
+\`/search <query>\`  — find products on Zepto
+\`/order <item>\`    — place an order directly
+\`/budget\`          — check your weekly spend cap
+\`/otp <code>\`      — submit Zepto login OTP
+\`/cancel\`          — abort current search
+
+*Example:*
+\`/search 1kg aashirvaad atta\`
+
+_Powered by Zepto · x402 · NEAR · Filecoin · Storacha_`
+
+function buildOrderCard(opts: {
+  item:    string
+  price?:  string
+  qty?:    string
+  eta?:    string
+  txHash?: string
+  payer?:  string
+  budget?: string
+  cid?:    string
+}): string {
+  const lines: string[] = []
+
+  lines.push(`✅ *Order Placed Successfully\\!*\n`)
+  lines.push(`📦 *Item:* ${esc(opts.item)}`)
+  if (opts.price) lines.push(`💰 *Price:* ${esc(opts.price)}`)
+  if (opts.qty)   lines.push(`🔢 *Qty:* ${esc(opts.qty)}`)
+  if (opts.eta)   lines.push(`⏱ *ETA:* ${esc(opts.eta)}`)
+
+  if (opts.txHash) {
+    const short = `${opts.txHash.slice(0, 8)}…${opts.txHash.slice(-6)}`
+    lines.push(`\n💳 *x402 Payment*`)
+    lines.push(`├ Tx: \`${opts.txHash}\``)
+    lines.push(`└ [View on BaseScan](https://sepolia.basescan.org/tx/${opts.txHash})`)
+  }
+
+  if (opts.budget) {
+    lines.push(`\n🔒 *NEAR Spend Cap*`)
+    lines.push(`└ ${esc(opts.budget)} remaining`)
+  }
+
+  if (opts.cid) {
+    lines.push(`\n📦 *Receipt CID:* \`${opts.cid}\``)
+  }
+
+  return lines.join('\n')
+}
+
+function buildSearchResults(query: string, products: ZeptoProduct[]): string {
+  const header = `🔎 *Search: "${esc(query)}"*\n`
+  const items = products.map((p, i) => {
+    const name  = esc(p.name)
+    const price = esc(p.price ?? '—')
+    return `*${i + 1}\\.* ${name}\n    💰 ${price}`
+  }).join('\n\n')
+
+  return (
+    header + '\n' + items + '\n\n' +
+    `_Reply with a number to order, or /cancel to abort\\._`
+  )
+}
+
+export function buildBudgetCard(raw: string): string {
+  // Try to parse structured budget info from the raw string
+  // Expected raw: "Remaining: ₹450 / ₹500 (90%)" or similar
+  // Fall back to just echoing raw if not parseable
+  const match = raw.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/)
+  if (match) {
+    const used      = parseFloat(match[1])
+    const total     = parseFloat(match[2])
+    const remaining = total - used
+    const pct       = Math.round((remaining / total) * 100)
+    const bar       = progressBar(pct)
+
+    return (
+      `🔒 *Weekly Spend Cap — NEAR Contract*\n\n` +
+      `${bar} ${pct}%\n\n` +
+      `├ Remaining: *₹${remaining.toFixed(2)}*\n` +
+      `├ Used:      ₹${used.toFixed(2)}\n` +
+      `└ Total:     ₹${total.toFixed(2)}\n\n` +
+      `_Enforced on\\-chain via \`maid402\\.testnet\`_`
+    )
+  }
+
+  // Fallback: decorate the raw string
+  return `🔒 *NEAR Spend Cap*\n\n${esc(raw)}`
+}
+
+// ── Step-by-step order status ─────────────────────────────────────────
+
+export function formatOrderStep(step: string): string {
+  const stepMap: Record<string, string> = {
+    searching:      '🔍 *Searching* Zepto for your item\\.\\.\\.',
+    found:          '✅ *Product found\\!* Adding to cart\\.\\.\\.',
+    adding:         '🛒 *Adding to cart* on Zepto\\.\\.\\.',
+    paying:         '💳 *Processing x402 payment* \\(Base Sepolia USDC\\)\\.\\.\\.',
+    payment_ok:     '✅ *Payment settled on\\-chain\\!*',
+    checkout:       '🏁 *Checking out* via Zepto Cash\\.\\.\\.',
+    near_check:     '🔒 *Checking NEAR spend cap\\.\\.\\.*',
+    near_ok:        '✅ *Spend cap approved\\!* Budget updated\\.',
+    storing:        '📦 *Archiving receipt* to Filecoin\\.\\.\\.',
+    done:           '🎉 *Order complete\\!* Your items are on the way\\.',
+    failed:         '❌ *Order failed* — see details below\\.',
+  }
+
+  const key = step.toLowerCase().replace(/\s+/g, '_')
+  return stepMap[key] ?? `⚙️ ${esc(step)}`
+}
+
+// ── Bot ───────────────────────────────────────────────────────────────
+
 export function startBot(
   onOrder:  OrderHandler,
   onSearch: SearchHandler,
@@ -58,85 +202,81 @@ export function startBot(
 
   // ── /start ───────────────────────────────────────────────────
   bot.command('start', async (ctx) => {
-    await ctx.reply(
-      `🏠 *Maid402 — Your Autonomous Home Agent*\n\n` +
-      `I manage your household shopping. Send me what you need and I'll order it silently.\n\n` +
-      `*Commands:*\n` +
-      `/search <query> — find products on Zepto\n` +
-      `/order <item> — order one item (or comma-separated list)\n` +
-      `/budget — check your weekly spend cap\n` +
-      `/otp <code> — submit login OTP if prompted\n` +
-      `/cancel — cancel active search\n\n` +
-      `_Example: /search 1kg atta_`,
-      { parse_mode: 'Markdown' }
-    )
+    await ctx.reply(WELCOME, { parse_mode: 'MarkdownV2', link_preview_options: { is_disabled: true } })
   })
 
   // ── /otp ─────────────────────────────────────────────────────
   bot.command('otp', async (ctx) => {
     const code = ctx.match?.trim()
-    if (!code) return ctx.reply('Usage: /otp <6-digit code>')
+    if (!code) return ctx.reply('Usage: /otp <6\\-digit code>', { parse_mode: 'MarkdownV2' })
     provideOtp(code)
-    await ctx.reply('✅ OTP submitted — login continuing...')
+    await ctx.reply('✅ OTP submitted — resuming login\\.', { parse_mode: 'MarkdownV2' })
   })
 
   // ── /cancel ───────────────────────────────────────────────────
   bot.command('cancel', async (ctx) => {
     pendingSearches.delete(ctx.chat.id)
-    await ctx.reply('❌ Cancelled.')
+    await ctx.reply('❌ Cancelled\\.', { parse_mode: 'MarkdownV2' })
   })
 
   // ── /budget ───────────────────────────────────────────────────
   bot.command('budget', async (ctx) => {
     try {
-      const msg = await onBudget(ctx.chat.id)
-      await ctx.reply(msg, { parse_mode: 'Markdown' })
+      const raw  = await onBudget(ctx.chat.id)
+      const card = buildBudgetCard(raw)
+      await ctx.reply(card, { parse_mode: 'MarkdownV2' })
     } catch (err) {
-      await ctx.reply(`❌ Could not fetch budget: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = esc(err instanceof Error ? err.message : 'Unknown error')
+      await ctx.reply(`❌ *Could not fetch budget*\n\n${msg}`, { parse_mode: 'MarkdownV2' })
     }
   })
 
   // ── /search ───────────────────────────────────────────────────
   bot.command('search', async (ctx) => {
     const query = ctx.match?.trim()
-    if (!query) return ctx.reply('Usage: /search <query>\nExample: /search milk')
+    if (!query) {
+      return ctx.reply(
+        '❓ *Usage:* `/search <query>`\n_Example: /search amul milk 1L_',
+        { parse_mode: 'MarkdownV2' }
+      )
+    }
 
     const chatId = ctx.chat.id
-
     const sendStatus = (msg: string) =>
-      bot!.api.sendMessage(chatId, msg, { parse_mode: 'Markdown' }).then(() => {})
+      bot!.api.sendMessage(chatId, msg, { parse_mode: 'MarkdownV2' }).then(() => {})
 
-    await sendStatus(`🔍 Searching Zepto for *"${query}"*...`)
+    await sendStatus(`🔍 Searching Zepto for *"${esc(query)}"*\\.\\.\\.`)
 
     try {
       const products = await onSearch(chatId, query, sendStatus)
 
       if (products.length === 0) {
-        return sendStatus(`❌ No products found for *"${query}"*. Try a different query.`)
+        return sendStatus(`❌ *No results* for *"${esc(query)}"*\\. Try a different search term\\.`)
       }
 
       pendingSearches.set(chatId, products)
-
-      const list = products.map((p, i) => `*${i + 1}.* ${p.name} — ${p.price}`).join('\n')
-      await sendStatus(
-        `🛒 *Results for "${query}":*\n\n${list}\n\n` +
-        `Reply with a number to order, or /cancel to abort.`
-      )
+      await sendStatus(buildSearchResults(query, products))
     } catch (err) {
-      await sendStatus(`❌ Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = esc(err instanceof Error ? err.message : 'Unknown error')
+      await sendStatus(`❌ *Search failed*\n\n${msg}`)
     }
   })
 
   // ── /order ────────────────────────────────────────────────────
   bot.command('order', async (ctx) => {
     const item = ctx.match?.trim()
-    if (!item) return ctx.reply('Usage: /order <item>\nExamples:\n  /order atta 1kg\n  /order milk, eggs, bread')
+    if (!item) {
+      return ctx.reply(
+        '❓ *Usage:* `/order <item>`\n\n_Examples:_\n`/order atta 1kg`\n`/order milk, eggs, bread`',
+        { parse_mode: 'MarkdownV2' }
+      )
+    }
 
-    const chatId    = ctx.chat.id
+    const chatId     = ctx.chat.id
     const sendStatus = (msg: string) =>
-      bot!.api.sendMessage(chatId, msg, { parse_mode: 'Markdown' }).then(() => {})
+      bot!.api.sendMessage(chatId, msg, { parse_mode: 'MarkdownV2' }).then(() => {})
 
-    await sendStatus(`🛒 Ordering *${item}* — starting autonomous flow...`)
+    await sendStatus(`🛒 Starting order for *${esc(item)}*\\.\\.\\.`)
     await onOrder(chatId, item, null, sendStatus)
   })
 
@@ -147,7 +287,7 @@ export function startBot(
     if (!text || text.startsWith('/')) return
 
     const sendStatus = (msg: string) =>
-      bot!.api.sendMessage(chatId, msg, { parse_mode: 'Markdown' }).then(() => {})
+      bot!.api.sendMessage(chatId, msg, { parse_mode: 'MarkdownV2' }).then(() => {})
 
     // If there's a pending search, try number selection first
     const products = pendingSearches.get(chatId)
@@ -156,11 +296,14 @@ export function startBot(
       if (!isNaN(num) && num >= 1 && num <= products.length) {
         const selected = products[num - 1]
         pendingSearches.delete(chatId)
-        await sendStatus(`✅ Selected: *${selected.name}* (${selected.price})\n\n⏳ Starting order flow...`)
+        await sendStatus(
+          `✅ *Selected:* ${esc(selected.name)}\n` +
+          `💰 ${esc(selected.price ?? '—')}\n\n` +
+          `⏳ Starting autonomous order flow\\.\\.\\.`
+        )
         await onOrder(chatId, selected.name, selected, sendStatus)
         return
       }
-      // Not a valid number — fall through to NL handler
       pendingSearches.delete(chatId)
     }
 
@@ -172,10 +315,12 @@ export function startBot(
 
     // Fallback hint
     await sendStatus(
-      `I'm not sure what you mean. Try:\n` +
-      `/order milk, eggs\n` +
-      `/search hocco ice cream\n` +
-      `or just say _"order me X"_ or _"find X"_`
+      `🤔 *Not sure what you mean\\.*\n\n` +
+      `Try one of these:\n` +
+      `• \`/order milk, eggs\`\n` +
+      `• \`/search hocco ice cream\`\n` +
+      `• _"order me 1kg atta"_\n` +
+      `• _"find oat milk"_`
     )
   })
 
@@ -190,6 +335,28 @@ export function startBot(
 
 /** Send a message to a chat (used by agent/index.ts for proactive notifications) */
 export async function notify(chatId: number, message: string): Promise<void> {
-  if (!bot) return
-  await bot.api.sendMessage(chatId, message, { parse_mode: 'Markdown' })
+  if (!bot || !chatId) return
+  await bot.api.sendMessage(chatId, message, { parse_mode: 'MarkdownV2' })
 }
+
+/** Send a formatted order confirmation card (no-op if chatId is 0 / web UI context) */
+export async function notifyOrderComplete(chatId: number, opts: {
+  item:    string
+  price?:  string
+  qty?:    string
+  eta?:    string
+  txHash?: string
+  payer?:  string
+  budget?: string
+  cid?:    string
+}): Promise<void> {
+  if (!bot || !chatId) return   // chatId=0 means web UI — skip Telegram send
+  const card = buildOrderCard(opts)
+  await bot.api.sendMessage(chatId, card, {
+    parse_mode:           'MarkdownV2',
+    link_preview_options: { is_disabled: true },
+  })
+}
+
+/** Expose helpers for use in agent/index.ts */
+export { buildOrderCard, esc }

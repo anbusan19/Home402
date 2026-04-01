@@ -17,6 +17,7 @@
   "dependencies": {
     "@filoz/synapse-sdk": "^1.0.0",
     "@web3-storage/w3up-client": "^16.0.0",
+    "@x402/evm": "^2.8.0",
     "@x402/fetch": "^2.2.0",
     "assemblyscript": "^0.28.12",
     "cors": "^2.8.5",

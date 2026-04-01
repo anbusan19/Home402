@@ -84,6 +84,34 @@ export function startHttpServer(onNL: NLHandler): void {
       return
     }
 
+    // ── POST /api/pay — x402 service-fee endpoint (no order execution) ──
+    // The agent calls this before every Telegram order to record an on-chain payment.
+    if (req.method === 'POST' && req.url === '/api/pay') {
+      const paymentHeader = req.headers['x-payment'] as string | undefined
+      const resourceUrl   = `${BASE_URL}/api/pay`
+
+      if (!paymentHeader) {
+        res.writeHead(402, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(build402Body(resourceUrl)))
+        return
+      }
+
+      const payment = await processX402Payment(paymentHeader, resourceUrl)
+      if (!payment.paid) {
+        res.writeHead(402, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: payment.error ?? 'Payment failed' }))
+        return
+      }
+
+      res.writeHead(200, {
+        'Content-Type':      'application/json',
+        'X-Payment-Receipt': payment.txHash ?? '',
+        'X-Payer':           payment.payer  ?? '',
+      })
+      res.end(JSON.stringify({ ok: true, txHash: payment.txHash, payer: payment.payer }))
+      return
+    }
+
     // ── GET /api/order — return payment requirements ─────────────
     if (req.method === 'GET' && req.url === '/api/order') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
