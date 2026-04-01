@@ -1,7 +1,7 @@
 /**
  * agent/scheduler.ts
  *
- * Proactive restock scheduler for Casa.
+ * Proactive restock scheduler for Maid402.
  * Runs every 6 hours and checks Impulse AI predictions.
  * If any item is predicted to run out within 2 days, places an automatic order.
  *

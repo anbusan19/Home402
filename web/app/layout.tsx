@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Casa — Autonomous Home Agent',
+  title: 'Maid402 — Autonomous Home Agent',
   description: 'Order anything from home, hands-free.',
 }
 

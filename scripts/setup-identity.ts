@@ -2,7 +2,7 @@
  * scripts/setup-identity.ts
  *
  * One-time ERC-8004 agent registration script.
- * Run once after deployment to register Casa on Sepolia.
+ * Run once after deployment to register Maid402 on Sepolia.
  *
  * Usage: npm run setup:identity
  *

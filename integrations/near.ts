@@ -1,11 +1,11 @@
 /**
  * integrations/near.ts
  *
- * NEAR Protocol spend cap contract client for Casa.
+ * NEAR Protocol spend cap contract client for Maid402.
  * Checks budget before each order and deducts after payment.
  *
  * Env vars required:
- *   NEAR_ACCOUNT_ID    — e.g. casa-agent.testnet
+ *   NEAR_ACCOUNT_ID    — e.g. Maid402-agent.testnet
  *   NEAR_PRIVATE_KEY   — ed25519 private key (from near-cli credentials)
  *   NEAR_CONTRACT_ID   — e.g. spend-cap.testnet
  */

@@ -1,6 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Styrene+A+Web:wght@400;500;600;700&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body { height: 100%; background: #0f0f11; color: #fff; }
+html, body {
+  height: 100%;
+  background: #f5f0e8;
+  color: #1a1915;
+  font-family: 'Styrene A Web', 'Styrene A', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
 
 @keyframes blink {
   0%, 100% { opacity: 1; }
@@ -12,14 +22,41 @@ html, body { height: 100%; background: #0f0f11; color: #fff; }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 4px; }
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
 
-/* Input focus ring */
-input:focus { outline: none; border-color: #4f46e5 !important; }
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4cbbf; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #b8ad9e; }
+
+/* Input / textarea reset */
+input, textarea { outline: none; font-family: inherit; }
+input:focus, textarea:focus { border-color: #d4a76a !important; box-shadow: 0 0 0 3px rgba(212,167,106,0.15) !important; }
+textarea { scrollbar-width: thin; scrollbar-color: #d4cbbf transparent; }
+
+/* Placeholder */
+::placeholder { color: #b0a090; }
+
+/* Selection */
+::selection { background: rgba(212,167,106,0.25); color: #1a1915; }
+
+/* Hover chip effect */
+.suggestion-chip:hover {
+  border-color: #c4a882 !important;
+  color: #4a3728 !important;
+  background: #ede8de !important;
+}
+
+/* Send button hover */
+.send-btn:hover:not(:disabled) {
+  background: #b8945e !important;
+}
+

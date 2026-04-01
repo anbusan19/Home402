@@ -1,6 +1,6 @@
 // SpendCap.near — NEAR smart contract (AssemblyScript)
 //
-// Enforces per-category weekly/monthly spend caps for Casa.
+// Enforces per-category weekly/monthly spend caps for Maid402.
 // Deployed to NEAR testnet via: npm run deploy:near
 //
 // Default caps:

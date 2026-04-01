@@ -1,7 +1,7 @@
 /**
  * browser/launcher.ts
  *
- * Stealth Chromium browser factory for Casa.
+ * Stealth Chromium browser factory for Maid402.
  * Supports multiple platforms — each with its own session file under browser/sessions/.
  *
  * Usage:

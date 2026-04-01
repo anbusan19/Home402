@@ -61,7 +61,7 @@ async function capturePlatform(name: string, url: string): Promise<void> {
 }
 
 async function main() {
-  console.log('\n🔐 Casa — Platform Session Capture')
+  console.log('\n🔐 Maid402 — Platform Session Capture')
   console.log('====================================\n')
   console.log('This script opens browser windows for each platform.')
   console.log('Log in once — sessions are saved for future automated orders.\n')

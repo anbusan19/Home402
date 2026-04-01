@@ -2,7 +2,7 @@
  * storage/storacha.ts
  *
  * Decentralised agent memory using Storacha (@web3-storage/w3up-client).
- * Stores Casa's preference profile and order history on the decentralised web.
+ * Stores Maid402's preference profile and order history on the decentralised web.
  *
  * Env vars required:
  *   STORACHA_EMAIL   — email for Storacha account authentication
@@ -64,11 +64,29 @@ async function writeLocalMemory(profile: PreferenceProfile): Promise<void> {
 
 // ── Storacha client ──────────────────────────────────────────────
 
+const STORACHA_SPACE_DID = process.env.STORACHA_SPACE_DID   // did:key:z... from w3 space ls
+
 async function getClient() {
-  const { create } = await import('@web3-storage/w3up-client')
-  const email = process.env.STORACHA_EMAIL
-  if (!email) throw new Error('STORACHA_EMAIL not set in .env')
-  return create()
+  const { create }   = await import('@web3-storage/w3up-client')
+  const { StoreIndexedDB, AccessIndexedDB } = await import('@web3-storage/w3up-client/stores/indexeddb').catch(() => ({
+    StoreIndexedDB: undefined, AccessIndexedDB: undefined,
+  }))
+
+  // Use node-compatible store (falls back to in-memory if indexeddb unavailable)
+  const client = await create()
+
+  if (STORACHA_SPACE_DID) {
+    // Space DID provided — set it directly without re-authenticating
+    await client.setCurrentSpace(STORACHA_SPACE_DID as `did:${string}:${string}`)
+  } else {
+    const email = process.env.STORACHA_EMAIL
+    if (!email) throw new Error('Set STORACHA_SPACE_DID (preferred) or STORACHA_EMAIL in .env')
+    // Login triggers an email verification link — only works interactively
+    // Run `pnpm setup:storacha` once to authorise and note your space DID
+    throw new Error('missing current space: run `pnpm setup:storacha` and set STORACHA_SPACE_DID in .env')
+  }
+
+  return client
 }
 
 /**

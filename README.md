@@ -1,8 +1,8 @@
-# Casa 🏠
+# Maid402 🏠
 
 > **The first home that manages its own spending.**
 
-Casa is an autonomous home commerce agent. It notices what your household is running low on, decides where to buy it, pays silently using platform-native wallets (Zepto Cash, Amazon Pay, Blinkit Credits), and only wakes you up when your money runs out or a purchase exceeds your budget cap.
+Maid402 is an autonomous home commerce agent. It notices what your household is running low on, decides where to buy it, pays silently using platform-native wallets (Zepto Cash, Amazon Pay, Blinkit Credits), and only wakes you up when your money runs out or a purchase exceeds your budget cap.
 
 Send a Telegram message. The agent opens a real browser, navigates the platform, adds items to cart, detects the available wallet balance, pays — and replies with a confirmation and a verifiable Filecoin receipt. No human in the loop.
 
@@ -15,29 +15,29 @@ Send a Telegram message. The agent opens a real browser, navigates the platform,
 ```
 You → Telegram: "order 1kg atta and 500ml milk from Zepto"
 
-Casa → opens zeptonow.com in stealth Chromium
-Casa → navigates to search, finds items, adds to cart
-Casa → reaches checkout, detects Zepto Cash balance (₹245)
-Casa → pays via Zepto Cash — no OTP, no human step
-Casa → scrapes order confirmation #ZP-8821934
-Casa → serializes receipt JSON → pushes to Filecoin Calibration Testnet
-Casa → updates ERC-8004 reputation registry (successful order)
-Casa → updates NEAR spend ledger (₹67 deducted from grocery budget)
+Maid402 → opens zeptonow.com in stealth Chromium
+Maid402 → navigates to search, finds items, adds to cart
+Maid402 → reaches checkout, detects Zepto Cash balance (₹245)
+Maid402 → pays via Zepto Cash — no OTP, no human step
+Maid402 → scrapes order confirmation #ZP-8821934
+Maid402 → serializes receipt JSON → pushes to Filecoin Calibration Testnet
+Maid402 → updates ERC-8004 reputation registry (successful order)
+Maid402 → updates NEAR spend ledger (₹67 deducted from grocery budget)
 
-Casa → Telegram: "Done ✓ Aashirvaad atta 1kg + Amul milk 500ml — ₹67 
+Maid402 → Telegram: "Done ✓ Aashirvaad atta 1kg + Amul milk 500ml — ₹67 
         paid via Zepto Cash. Order #ZP-8821934
         Receipt: bafyrei...abc3 (Filecoin)"
 ```
 
 ---
 
-## Why Casa Exists
+## Why Maid402 Exists
 
 Every AI assistant today can tell you what to buy. None of them actually buy it. The last mile — checkout and payment — always falls back to a human. Not because the AI isn't smart enough. Because it has no way to pay autonomously.
 
 HTTP 402 was reserved in 1991 for "Payment Required" and left unused for thirty years. x402 activates that forgotten status code as the payment primitive the internet always needed — a standard way for any server to say "pay me here" and for any agent to respond and complete the transaction without human intervention.
 
-Casa proves this works today, on real Indian infrastructure, with real platforms, real wallets, and real orders.
+Maid402 proves this works today, on real Indian infrastructure, with real platforms, real wallets, and real orders.
 
 ---
 
@@ -102,7 +102,7 @@ Casa proves this works today, on real Indian infrastructure, with real platforms
 ## Repo Structure
 
 ```
-casa/
+Maid402/
 ├── agent/
 │   ├── index.ts              # Main agent loop
 │   ├── brain.ts              # LLM vision reasoning (Claude API)
@@ -150,13 +150,13 @@ casa/
 ```json
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-  "name": "Casa",
+  "name": "Maid402",
   "description": "Autonomous home commerce agent. Perceives household needs, navigates real e-commerce platforms by vision, and pays using x402 and platform-native wallets. No human in the loop.",
-  "image": "https://your-domain.com/casa-logo.png",
+  "image": "https://your-domain.com/Maid402-logo.png",
   "services": [
     {
       "name": "telegram",
-      "endpoint": "https://t.me/casa_agent_bot"
+      "endpoint": "https://t.me/Maid402_agent_bot"
     },
     {
       "name": "web",
@@ -174,7 +174,7 @@ casa/
   "supportedTrust": ["reputation"],
   "operator": {
     "wallet": "0x<YOUR_OPERATOR_WALLET>",
-    "name": "Casa Operator"
+    "name": "Maid402 Operator"
   },
   "tools": [
     "playwright-browser",
@@ -243,8 +243,8 @@ Every order produces a receipt pushed to Filecoin Calibration Testnet:
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/casa
-cd casa
+git clone https://github.com/your-org/Maid402
+cd Maid402
 npm install
 cp .env.example .env
 ```
@@ -291,7 +291,7 @@ X402_MOCK_SERVER_PORT=4020
 **Step 1: Register ERC-8004 identity**
 ```bash
 npm run setup:identity
-# Registers Casa on Sepolia Identity Registry
+# Registers Maid402 on Sepolia Identity Registry
 # Prints your agentId — save it, update agent.json
 ```
 
@@ -376,7 +376,7 @@ Item predicted to run out in ≤ 2 days?
 
 ## ERC-8004 Trust Flow
 
-Every order updates Casa's on-chain reputation:
+Every order updates Maid402's on-chain reputation:
 
 ```
 Successful order
@@ -492,7 +492,7 @@ Auto-generated during every run. Required for Ethereum Foundation bounty submiss
 
 ## Hackathon Track Submissions
 
-Casa is submitted across the following tracks at PL Genesis: Frontiers of Collaboration:
+Maid402 is submitted across the following tracks at PL Genesis: Frontiers of Collaboration:
 
 | Track | Sponsor | Prize | Key Integration |
 |---|---|---|---|

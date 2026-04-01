@@ -1,7 +1,7 @@
 /**
  * browser/navigator.ts
  *
- * Vision-driven page navigation for Casa.
+ * Vision-driven page navigation for Maid402.
  * Uses Claude (brain.ts) to decide actions from screenshots, then executes them with Playwright.
  *
  * Replaces hard-coded selector chains with a flexible vision loop.

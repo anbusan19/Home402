@@ -1,7 +1,7 @@
 /**
  * agent/logger.ts
  *
- * Structured execution logger for Casa.
+ * Structured execution logger for Maid402.
  * Writes agent_log.json in the format required by the Ethereum Foundation bounty.
  * Each run produces a complete trace of every decision and tool call.
  */

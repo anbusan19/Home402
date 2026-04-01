@@ -98,6 +98,20 @@ export async function addItemToCart(
         Array.from(document.querySelectorAll('button')).some(b => /view cart/i.test(b.textContent?.trim() ?? ''))
       , { timeout: 5000 })
       console.log('[zepto:add] Item added ✅', productName)
+
+      // Click "View Cart" to navigate to cart page instead of returning to home
+      const viewCartClicked = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(
+          b => /view cart/i.test(b.textContent?.trim() ?? '')
+        ) as HTMLElement | undefined
+        if (btn) { btn.click(); return true }
+        return false
+      })
+      console.log('[zepto:add] View Cart clicked:', viewCartClicked)
+      if (viewCartClicked) {
+        await page.waitForTimeout(3000)
+        console.log('[zepto:add] Now on:', page.url())
+      }
     } catch {
       await page.waitForTimeout(2000)
     }
@@ -118,32 +132,45 @@ export async function checkoutZeptoCart(
   const page = await context.newPage()
 
   try {
-    // Navigate to cart
-    console.log('[zepto:checkout] Navigating to cart...')
-    await page.goto(`${ZEPTO_URL}/cart`, { waitUntil: 'networkidle', timeout: 40000 })
-    await page.waitForTimeout(2000)
+    // Zepto opens cart as a drawer (?cart=open) — navigate to home with that param
+    console.log('[zepto:checkout] Opening cart drawer...')
+    await page.goto(`${ZEPTO_URL}?cart=open`, { waitUntil: 'networkidle', timeout: 40000 })
+    await page.waitForTimeout(2500)
 
-    // If cart page didn't load, try clicking the cart icon from home
-    const onCart = await page.evaluate(() =>
+    // Check if cart drawer content is visible
+    let onCart = await page.evaluate(() =>
       /item total|total bill|add address|proceed to pay|your cart/i.test(document.body.innerText)
     )
+
     if (!onCart) {
-      console.log('[zepto:checkout] Direct /cart load uncertain, trying cart icon...')
-      await page.goto(ZEPTO_URL, { waitUntil: 'networkidle', timeout: 30000 })
-      await page.waitForTimeout(2000)
-      const cartIcon = page.locator('[aria-label*="cart" i], [data-testid*="cart" i], a[href*="/cart"]').first()
-      const cartVisible = await cartIcon.isVisible().catch(() => false)
-      if (cartVisible) {
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {}),
-          cartIcon.click(),
-        ])
+      // Try clicking cart icon to open the drawer
+      console.log('[zepto:checkout] Cart drawer not detected, clicking cart icon...')
+      const cartIconClicked = await page.evaluate(() => {
+        const el = Array.from(document.querySelectorAll('button, a, div, span')).find(e => {
+          const label = (e as HTMLElement).getAttribute('aria-label') || ''
+          const testId = (e as HTMLElement).getAttribute('data-testid') || ''
+          const href = (e as HTMLAnchorElement).href || ''
+          return (
+            /cart/i.test(label) || /cart/i.test(testId) || href.includes('/cart')
+          ) && (e as HTMLElement).offsetParent !== null
+        }) as HTMLElement | undefined
+        if (el) { el.click(); return true }
+        return false
+      })
+      console.log('[zepto:checkout] Cart icon clicked:', cartIconClicked)
+      // Wait for drawer to appear (no navigation — it's a drawer)
+      try {
+        await page.waitForFunction(() =>
+          /item total|total bill|add address|proceed to pay|your cart/i.test(document.body.innerText)
+        , { timeout: 8000 })
+        onCart = true
+      } catch {
+        await page.waitForTimeout(2000)
       }
-      await page.waitForTimeout(2000)
     }
 
     await page.screenshot({ path: '/tmp/zepto-cart.png' })
-    console.log('[zepto:checkout] Cart page URL:', page.url())
+    console.log('[zepto:checkout] Cart state — on cart:', onCart, '| URL:', page.url())
 
     const needsLogin = await page.locator('text=Please Login').isVisible().catch(() => false)
     if (needsLogin) throw new Error('SESSION_EXPIRED — re-login needed')
@@ -151,10 +178,15 @@ export async function checkoutZeptoCart(
     async function jsClickButton(pattern: RegExp, label: string): Promise<boolean> {
       const clicked = await page.evaluate((pat: string) => {
         const re  = new RegExp(pat, 'i')
-        const btn = Array.from(document.querySelectorAll('button')).find(
-          b => re.test(b.textContent?.trim() ?? '')
-        ) as HTMLElement | undefined
-        if (btn) { btn.click(); return true }
+        // Search buttons first, then any visible interactive element
+        const candidates = [
+          ...Array.from(document.querySelectorAll('button')),
+          ...Array.from(document.querySelectorAll('div[role="button"], a, div, span')),
+        ] as HTMLElement[]
+        const el = candidates.find(
+          b => re.test(b.textContent?.trim() ?? '') && b.offsetParent !== null
+        )
+        if (el) { el.click(); return true }
         return false
       }, pattern.source)
       console.log(`[zepto:checkout] jsClick "${label}":`, clicked ? 'clicked ✅' : 'not found')
@@ -227,6 +259,20 @@ export async function checkoutZeptoCart(
     await page.screenshot({ path: '/tmp/zepto-s7-after-address.png' })
 
     // ── Proceed to Pay ───────────────────────────────────────────
+    // First try selecting Zepto Cash on the cart page if it's already visible
+    const walletOnCart = await page.evaluate(() => {
+      const el = Array.from(document.querySelectorAll('div, label, button, span, input')).find(
+        e => /zepto cash|zepto wallet|wallet balance/i.test(e.textContent?.trim() ?? '')
+          && (e as HTMLElement).offsetParent !== null
+      ) as HTMLElement | undefined
+      if (el) { el.click(); return true }
+      return false
+    })
+    if (walletOnCart) {
+      console.log('[zepto:checkout] Zepto Cash selected on cart page ✅')
+      await page.waitForTimeout(1000)
+    }
+
     const proceedClicked = await jsClickButton(/proceed to pay/i, 'Proceed to Pay')
     if (proceedClicked) {
       try {
@@ -238,8 +284,17 @@ export async function checkoutZeptoCart(
     await page.waitForTimeout(2000)
     await page.screenshot({ path: '/tmp/zepto-s8-payment-screen.png' })
 
-    // ── Select Zepto Cash ────────────────────────────────────────
+    // ── Select Zepto Cash on payment screen ──────────────────────
     const walletClicked = await page.evaluate(() => {
+      // Try radio/checkbox inputs first
+      const inputs = Array.from(document.querySelectorAll('input[type="radio"], input[type="checkbox"]')) as HTMLInputElement[]
+      for (const inp of inputs) {
+        const label = inp.closest('label') || inp.parentElement
+        if (/zepto cash|zepto wallet|wallet balance/i.test(label?.textContent?.trim() ?? '')) {
+          inp.click(); return true
+        }
+      }
+      // Fallback: click any visible zepto cash element
       const el = Array.from(document.querySelectorAll('div, label, button, span')).find(
         e => /zepto cash|zepto wallet|wallet balance/i.test(e.textContent?.trim() ?? '')
           && (e as HTMLElement).offsetParent !== null

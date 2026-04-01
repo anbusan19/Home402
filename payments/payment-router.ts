@@ -1,7 +1,7 @@
 /**
  * payments/payment-router.ts
  *
- * Casa payment routing logic:
+ * Maid402 payment routing logic:
  *   1. Attempt x402 HTTP payment → if settled, done
  *   2. Detect platform wallet balance → if sufficient, use platform wallet
  *   3. If insufficient, check NEAR budget → notify user

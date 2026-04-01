@@ -39,32 +39,53 @@ async function main() {
     const { create } = await import('@web3-storage/w3up-client')
     const client     = await create()
 
-    // Login with email (sends verification link)
+    // Login with email (sends verification link) — returns Account object
     console.log('Logging in to Storacha...')
-    await client.login(email as `${string}@${string}`)
+    const account = await client.login(email as `${string}@${string}`)
     console.log('✅ Logged in!')
 
-    // Create a space for Casa
-    console.log('Creating storage space "casa-agent-memory"...')
-    const space = await client.createSpace('casa-agent-memory')
-    await client.setCurrentSpace(space.did())
-    console.log(`✅ Space created: ${space.did()}`)
+    // Check / wait for a billing plan (free tier is fine)
+    console.log('Checking account plan...')
+    try {
+      await account.plan.wait()
+    } catch (planErr) {
+      const planMsg = planErr instanceof Error
+        ? planErr.message
+        : JSON.stringify(planErr)
+      throw new Error(
+        `No billing plan found on your Storacha account.\n` +
+        `  → Go to https://console.storacha.network, sign in as ${email}, and select the free plan.\n` +
+        `  → Then re-run: pnpm setup:storacha\n` +
+        `  (raw error: ${planMsg})`
+      )
+    }
 
-    // Upload initial preference profile
+    // Create a space and provision it via the account (grants the agent proofs)
+    console.log('Creating storage space "Maid402-agent-memory"...')
+    const space = await client.createSpace('Maid402-agent-memory', { account })
+    await client.setCurrentSpace(space.did())
+    const spaceDid = space.did()
+    console.log(`✅ Space created: ${spaceDid}`)
+
+    // Upload initial preference profile directly (bypass getClient which needs env var)
     console.log('\nUploading initial preference profile...')
-    const cid = await savePreferenceProfile(INITIAL_PROFILE)
+    const json = JSON.stringify(INITIAL_PROFILE)
+    const blob = new Blob([json], { type: 'application/json' })
+    const file = new File([blob], 'preference-profile.json')
+    const cid  = await client.uploadFile(file)
     console.log(`✅ Profile uploaded: ${cid}`)
 
     console.log('\n🎉 Storacha setup complete!')
-    console.log(`   Space DID: ${space.did()}`)
+    console.log(`   Space DID: ${spaceDid}`)
     console.log(`   Profile CID: ${cid}`)
-    console.log(`   View at: https://console.storacha.network\n`)
+    console.log(`   View at: https://console.storacha.network`)
+    console.log(`\n👉 Add this to your .env:\n   STORACHA_SPACE_DID=${spaceDid}\n`)
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('❌ Setup failed:', msg)
     console.log('\nFalling back to local-only memory (no Storacha).')
-    console.log('Casa will still work — preference profile saved to .storacha-memory.json')
+    console.log('Maid402 will still work — preference profile saved to .storacha-memory.json')
   }
 }
 

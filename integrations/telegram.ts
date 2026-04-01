@@ -1,7 +1,7 @@
 /**
  * integrations/telegram.ts
  *
- * Casa Telegram bot — built with grammY.
+ * Maid402 Telegram bot — built with grammY.
  * Receives orders from users, triggers the full autonomous order pipeline,
  * and sends real-time status updates.
  *
@@ -59,7 +59,7 @@ export function startBot(
   // ── /start ───────────────────────────────────────────────────
   bot.command('start', async (ctx) => {
     await ctx.reply(
-      `🏠 *Casa — Your Autonomous Home Agent*\n\n` +
+      `🏠 *Maid402 — Your Autonomous Home Agent*\n\n` +
       `I manage your household shopping. Send me what you need and I'll order it silently.\n\n` +
       `*Commands:*\n` +
       `/search <query> — find products on Zepto\n` +
@@ -184,7 +184,7 @@ export function startBot(
   })
 
   bot.start()
-  console.log('[telegram] Casa bot started (grammY long-polling)')
+  console.log('[telegram] Maid402 bot started (grammY long-polling)')
   return bot
 }
 

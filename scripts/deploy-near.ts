@@ -5,7 +5,7 @@
  * Run once: npm run deploy:near
  *
  * Prerequisites:
- *   - NEAR_ACCOUNT_ID in .env (e.g. casa-agent.testnet)
+ *   - NEAR_ACCOUNT_ID in .env (e.g. Maid402-agent.testnet)
  *   - NEAR_PRIVATE_KEY in .env
  *   - near-sdk-as compiled WASM at contracts/SpendCap.wasm
  *     (compile with: cd contracts && npx asc SpendCap.near -o SpendCap.wasm)

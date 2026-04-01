@@ -1,7 +1,7 @@
 /**
  * payments/x402-client.ts
  *
- * x402 HTTP payment client for Casa.
+ * x402 HTTP payment client for Maid402.
  * Attempts to pay via the x402 protocol (HTTP 402 handshake).
  * Falls through silently if no 402 response is received.
  *
@@ -38,7 +38,8 @@ export async function attemptX402Payment(
     // Dynamic import of @x402/fetch (ESM)
     const { wrapFetchWithPayment } = await import('@x402/fetch')
 
-    const account = privateKeyToAccount(pk as `0x${string}`)
+    const normalizedPk = (pk.startsWith('0x') ? pk : `0x${pk}`) as `0x${string}`
+    const account = privateKeyToAccount(normalizedPk)
     const wallet  = createWalletClient({
       account,
       chain:    baseSepolia,

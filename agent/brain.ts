@@ -1,7 +1,7 @@
 /**
  * agent/brain.ts
  *
- * Vision reasoning engine for Casa — powered by Groq (llama-3.2-vision).
+ * Vision reasoning engine for Maid402 — powered by Groq (llama-3.2-vision).
  * Takes a screenshot of the current browser state and returns a structured action decision.
  *
  * Used by browser/navigator.ts to drive Playwright without hard-coded selectors.
@@ -26,7 +26,7 @@ export interface BrainDecision {
   reasoning: string
 }
 
-const SYSTEM_PROMPT = `You are the navigation brain of Casa, an autonomous home commerce agent.
+const SYSTEM_PROMPT = `You are the navigation brain of Maid402, an autonomous home commerce agent.
 You receive a screenshot of a mobile browser (390×844 viewport, Indian e-commerce apps).
 Your job: decide the NEXT SINGLE action to take to achieve the given goal.
 
@@ -120,7 +120,7 @@ export interface NLIntent {
   reply: string
 }
 
-const NL_SYSTEM = `You are the intent parser for Casa, an autonomous home-shopping agent in India.
+const NL_SYSTEM = `You are the intent parser for Maid402, an autonomous home-shopping agent in India.
 The user sends casual messages via Telegram. Extract their intent and the items they want.
 
 Respond ONLY with valid JSON:

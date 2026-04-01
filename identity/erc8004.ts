@@ -1,7 +1,7 @@
 /**
  * identity/erc8004.ts
  *
- * ERC-8004 Identity and Reputation Registry client for Casa.
+ * ERC-8004 Identity and Reputation Registry client for Maid402.
  * Registers the agent on-chain (Sepolia) and updates reputation after each order.
  *
  * Contracts (Sepolia testnet):
@@ -72,7 +72,7 @@ export interface AgentManifest {
 // ── Registration ──────────────────────────────────────────────────
 
 /**
- * Register Casa on the ERC-8004 Identity Registry (Sepolia).
+ * Register Maid402 on the ERC-8004 Identity Registry (Sepolia).
  * Returns the assigned agentId.
  * Run once via: npm run setup:identity
  */
@@ -99,7 +99,7 @@ export async function registerAgent(metadataURI: string): Promise<bigint> {
 // ── Reputation ────────────────────────────────────────────────────
 
 /**
- * Update Casa's on-chain reputation after an order.
+ * Update Maid402's on-chain reputation after an order.
  * @param signal      +1 for success, -1 for failure
  * @param reason      Short reason string (e.g. "order_completed", "order_failed")
  * @param evidenceCID Filecoin CID of the receipt (evidence)
@@ -123,7 +123,7 @@ export async function giveFeedback(
 }
 
 /**
- * Get the current reputation score for Casa.
+ * Get the current reputation score for Maid402.
  */
 export async function getReputation(): Promise<{ score: bigint; totalFeedback: bigint }> {
   const agentId = await getAgentId()

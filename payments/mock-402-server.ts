@@ -42,7 +42,7 @@ app.all('/pay', (req, res) => {
       network:         'base-sepolia',
       maxAmountRequired: '100000', // 0.1 USDC (6 decimals)
       resource:        `http://localhost:${port}/pay`,
-      description:     'Casa mock payment endpoint',
+      description:     'Maid402 mock payment endpoint',
       mimeType:        'application/json',
       payTo:           process.env.OPERATOR_WALLET || '0x0000000000000000000000000000000000000000',
       maxTimeoutSeconds: 60,
@@ -57,7 +57,7 @@ app.all('/pay', (req, res) => {
 })
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', server: 'casa-mock-402', port })
+  res.json({ status: 'ok', server: 'Maid402-mock-402', port })
 })
 
 app.listen(port, () => {
